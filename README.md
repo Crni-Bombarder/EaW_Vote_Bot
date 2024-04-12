@@ -4,11 +4,11 @@ A custom Discord bot to allow the EaW team to run seemlessly an internal electio
 # Setting up the environment
 You need Python 3.XX or later installed
 
-Create a virtual environment
+Create a virtual environment and run it
 
 ```
 python -m venv env
-source env/Lib/Activate.ps1 # For exemple for windows and in a PowerShell
+& ./env/Scripts/Activate.ps1 # For exemple for windows and in a PowerShell
 ```
 
 Then install the requirement
