@@ -26,6 +26,7 @@ class IDDatabase:
         while True:
             discord_name, vote_id = self.write_queue.get()
             self.fd.write(f"{discord_name},{vote_id}\n")
+            self.fd.flush()
             self.write_queue.task_done()
 
     def init_blank_database(self):
@@ -61,9 +62,13 @@ class IDDatabase:
                         self.add_to_local_database_entry(discord_name, vote_id)
                 line = fd.readline().strip()
 
+    def __str__(self):
+        return str(self.couple_dict)
+
     def __del__(self):
         try:
             self.write_thread.join()
+            self.fd.flush()
             self.fd.close()
         except:
             pass
