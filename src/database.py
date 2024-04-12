@@ -43,6 +43,11 @@ class IDDatabase:
         self.vote_id_set.add(vote_id)
         self.discord_name_set.add(discord_name)
 
+    def delete_entry_from_name(self, discord_name):
+        self.vote_id_set.remove(self.couple_dict[discord_name])
+        self.discord_name_set.remove(discord_name)
+        self.couple_dict.pop(discord_name)
+
     def check_vote_id(self, vote_id):
         return vote_id in self.vote_id_set
 
@@ -61,7 +66,7 @@ class IDDatabase:
                 if results:
                     discord_name = results[1]
                     vote_id = results[2]
-                    if (not self.check_discord_name(discord_name)) and (not self.check_vote_id(vote_id)):
+                    if not self.check_vote_id(vote_id):
                         self.add_to_local_database_entry(discord_name, vote_id)
                 line = fd.readline().strip()
 
