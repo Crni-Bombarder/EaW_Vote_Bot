@@ -42,6 +42,8 @@ class DiscordBot:
                     case "get-vote-id":
                         if not self.database.check_discord_name(message.author.name):
                             vote_id = self.generate_new_vote_id()
+                            if not vote_id:
+                                await message.author.send(f"_{message.content}_: Something went wrong, call the admin !")
                             self.database.add_to_file_database(message.author.name, vote_id)
                             await message.author.send(f"_{message.content}_: Associated {message.author.name} with {vote_id}")
                         await message.author.send(f"_{message.content}_: Your Vote ID is {self.database.get_vote_id_from_name(message.author.name)}")
@@ -77,6 +79,7 @@ class DiscordBot:
             i += 1
             if i > 50:
                 print("Error generating a Vote ID, critical")
+                return None
         return vote_id
 
     def generate_vote_id(self):
