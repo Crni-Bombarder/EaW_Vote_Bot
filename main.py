@@ -30,9 +30,9 @@ def create_arg_parser():
                         default="$eaw-vote",
                         help="Prefix for the bot commands, default to $eaw-vote")
     parser.add_argument("--bot-channel",
-                        default="General",
-                        help="Channel name that the bot will parse, default to General")
-    parser.add_argument("admin-name",
+                        default="general",
+                        help="Channel name that the bot will parse, default to general")
+    parser.add_argument("admin_name",
                         help="Discord ID of the admin")
 
     return parser

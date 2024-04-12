@@ -49,6 +49,9 @@ class IDDatabase:
     def check_discord_name(self, discord_name):
         return discord_name in self.discord_name_set
 
+    def get_vote_id_from_name(self, discord_name):
+        return self.couple_dict[discord_name]
+
     def init_database_from_file(self, filepath):
         self.init_blank_database()
         with open(filepath, "r") as fd:
