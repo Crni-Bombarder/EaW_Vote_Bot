@@ -69,10 +69,19 @@ options:
 ```
 ### Exemples
 ```
-# Start the bot, reset the database with the admin beeing crnibombarder
+# Start the bot, reset the database with the admin being crnibombarder
 python main.py --reset-database crnibombarder
 ```
 
+```
+# Start the bot with a token from the command line, and a specific spreadsheet
+python main.py --discord-token <TOKEN> -- crnibombarder <SPREADSHEETID>
+```
+
+```
+# Start the bot with custom command prefix and
+python main.py --discord-token <TOKEN> -- crnibombarder <SPREADSHEETID>
+```
 ## Generating a release
 The packet pyinstaller is used to generate a release package:
 ```
