@@ -11,13 +11,13 @@ def create_arg_parser():
     discord_token = parser.add_mutually_exclusive_group()
     discord_token.add_argument("--discord-token-file",
                                default="./discord_token.txt",
-                               help="Path to a file containing a discord authentification token, default to ./discord_token.txt")
+                               help="Path to a file containing a discord authentification token. Default to ./discord_token.txt")
     discord_token.add_argument("--discord-token",
                                help="Discord authentification token to use")
 
     parser.add_argument("--google-token-file",
                         default="./google_credentials.json",
-                        help="Path to a file containing a google authentification token")
+                        help="Path to a file containing a google authentification token. Default to google_credentials.json")
     parser.add_argument("--database-file",
                         default="./database.txt",
                         help="The path of the database file, default to database.txt")
@@ -36,7 +36,8 @@ def create_arg_parser():
     parser.add_argument("admin_name",
                         help="Discord ID of the admin")
     parser.add_argument("spreadsheet_id",
-                        help="ID of the Google Sheet, included in the URL (Example: https://docs.google.com/spreadsheets/d/<ID>/edit#gid=0)")
+                        nargs='?',
+                        help="ID of the Google Sheet, included in the URL (Example: https://docs.google.com/spreadsheets/d/<ID>/edit#gid=0). Deactivate this feature if not provided")
 
     return parser
 
@@ -67,7 +68,9 @@ if __name__ == "__main__":
     else:
         discord_token = get_discord_token_from_file(args.discord_token_file)
 
-    spreadsheet = SpreadsheetHandler(args.google_token_file, args.spreadsheet_id, "Sheet1")
+    spreadsheet = None
+    if args.spreadsheet_id:
+        spreadsheet = SpreadsheetHandler(args.google_token_file, args.spreadsheet_id, "Sheet1")
     database = IDDatabase(args.database_file, spreadsheet, args.reset_database)
     if args.display_database:
         print(str(database))

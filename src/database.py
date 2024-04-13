@@ -28,7 +28,8 @@ class IDDatabase:
             discord_name, vote_id = self.write_queue.get()
             self.fd.write(f"{discord_name},{vote_id}\n")
             self.fd.flush()
-            self.spreadsheet.write_vote_id(vote_id)
+            if self.spreadsheet:
+                self.spreadsheet.write_vote_id(vote_id)
             self.write_queue.task_done()
 
     def init_blank_database(self):
