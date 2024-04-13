@@ -1,6 +1,7 @@
 import discord
 import string
 import random
+import re
 
 class DiscordBot:
 
@@ -12,15 +13,19 @@ class DiscordBot:
 * **get-database** : Return in DM the whole current database
 * **delete-from-database** : Delete a user from the database, forcing to regenerate a different vote ID. For debug"""
 
+    RE_SEND_VOTE_ID_TO_ROLE = re.compile('\\S*\\s+send-vote-id-to-role\\s"(.*)"\\s*')
+
     def __init__(self, database, discord_token, bot_channel, bot_command, admin_name):
         self.database = database
         self.discord_token = discord_token
         self.bot_channel = bot_channel
         self.bot_command = bot_command
         self.admin_name = admin_name
+        self.botname = "EaW VOte ID Bot"
 
         self.intents = discord.Intents.default()
         self.intents.message_content = True
+        self.intents.members = True
 
         self.client = discord.Client(intents=self.intents)
 
@@ -40,19 +45,27 @@ class DiscordBot:
                     return
                 match tokens[1]:
                     case "get-vote-id":
-                        if not self.database.check_discord_name(message.author.name):
-                            vote_id = self.generate_new_vote_id()
-                            if not vote_id:
-                                await message.author.send(f"_{message.content}_: Something went wrong, call the admin !")
-                            self.database.add_to_file_database(message.author.name, vote_id)
-                            await message.author.send(f"_{message.content}_: Associated {message.author.name} with {vote_id}")
-                        await message.author.send(f"_{message.content}_: Your Vote ID is {self.database.get_vote_id_from_name(message.author.name)}")
+                        await self.get_vote_id_cmd(message.author)
 
                     case "get-database":
                         if message.author.name == self.admin_name:
                             await message.author.send(str(self.database))
                         else:
                             await self.send_manual(message.author)
+
+                    case "send-vote-id-to-role":
+                        if message.author.name == self.admin_name:
+                            match = DiscordBot.RE_SEND_VOTE_ID_TO_ROLE.match(message.content.strip())
+                            if match:
+                                for role in await message.guild.fetch_roles():
+                                    if role.name == match.group(1):
+                                        for member in role.members:
+                                            await self.get_vote_id_cmd(member)
+                                        return
+                                await message.author.send(f"Cannot find the role {match.group(1)}")
+                                await self.send_manual(message.author)
+                                return
+                        await self.send_manual(message.author)
 
                     case "delete-from-database":
                         if message.author.name == self.admin_name and len(tokens) > 2:
@@ -81,6 +94,15 @@ class DiscordBot:
                 print("Error generating a Vote ID, critical")
                 return None
         return vote_id
+
+    async def get_vote_id_cmd(self, member):
+        if not self.database.check_discord_name(member.name):
+            vote_id = self.generate_new_vote_id()
+            if not vote_id:
+                await member.send(f"_{self.botname}_: Something went wrong, call the admin !")
+            self.database.add_to_file_database(member.name, vote_id)
+            #await member.send(f"_{self.botname}_: Associated {member.name} with {vote_id}")
+        await member.send(f"_{self.botname}_: Your Vote ID is {self.database.get_vote_id_from_name(member.name)}")
 
     def generate_vote_id(self):
         return "".join(random.choices(DiscordBot.VOTE_ID_ELEMENTS, k=DiscordBot.VOTE_ID_LENGTH))
