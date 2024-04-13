@@ -4,6 +4,7 @@ import time
 
 from src.database import IDDatabase
 from src.discord_bot import DiscordBot
+from src.spreadsheet import SpreadsheetHandler
 
 def create_arg_parser():
     parser = argparse.ArgumentParser(description="A discord bot used to manage a user unique ID for vote through a google form")
@@ -15,7 +16,7 @@ def create_arg_parser():
                                help="Discord authentification token to use")
 
     parser.add_argument("--google-token-file",
-                        default="./google_token.txt",
+                        default="./google_credentials.json",
                         help="Path to a file containing a google authentification token")
     parser.add_argument("--database-file",
                         default="./database.txt",
@@ -34,6 +35,8 @@ def create_arg_parser():
                         help="Channel name that the bot will parse, default to general")
     parser.add_argument("admin_name",
                         help="Discord ID of the admin")
+    parser.add_argument("spreadsheet_id",
+                        help="ID of the Google Sheet, included in the URL (Example: https://docs.google.com/spreadsheets/d/<ID>/edit#gid=0)")
 
     return parser
 
@@ -64,9 +67,11 @@ if __name__ == "__main__":
     else:
         discord_token = get_discord_token_from_file(args.discord_token_file)
 
-    database = IDDatabase(args.database_file, args.reset_database)
+    spreadsheet = SpreadsheetHandler(args.google_token_file, args.spreadsheet_id, "Sheet1")
+    database = IDDatabase(args.database_file, spreadsheet, args.reset_database)
     if args.display_database:
         print(str(database))
         sys.exit()
+
     discord_bot = DiscordBot(database, discord_token, args.bot_channel, args.bot_command, args.admin_name)
     discord_bot.run()

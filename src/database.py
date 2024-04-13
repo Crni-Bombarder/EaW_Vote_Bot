@@ -7,8 +7,9 @@ class IDDatabase:
 
     DATABASE_RE = re.compile("(.*),(.*)")
 
-    def __init__(self, filepath, clear_file=False):
+    def __init__(self, filepath, spreadsheet, clear_file=False):
         self.filepath = filepath
+        self.spreadsheet = spreadsheet
         if clear_file:
             self.fd = open(filepath, "w", encoding="utf-8")
             self.init_blank_database()
@@ -27,6 +28,7 @@ class IDDatabase:
             discord_name, vote_id = self.write_queue.get()
             self.fd.write(f"{discord_name},{vote_id}\n")
             self.fd.flush()
+            self.spreadsheet.write_vote_id(vote_id)
             self.write_queue.task_done()
 
     def init_blank_database(self):

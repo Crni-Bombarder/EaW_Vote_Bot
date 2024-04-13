@@ -1,3 +1,4 @@
 # Python virtual environment
 env/*
 src/__pycache__/*
+google_credentials.json
