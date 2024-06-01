@@ -54,7 +54,7 @@ class DiscordBot:
 
                 print(tokens)
                 if self.check_authorization(message, tokens[1]):
-                    await BotCommand.exec_command(message, tokens[1:])
+                    await BotCommand.exec_command(self, message, tokens[1:])
                 else:
                     await message.author.send(f'Unknown command: {tokens[1]}')
 

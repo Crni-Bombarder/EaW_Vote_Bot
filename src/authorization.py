@@ -14,8 +14,8 @@ class Authorization:
             self.database = json.load(fd)
 
     def save_to_file(self):
-        with open(self.filepath, "r") as fd:
-            json.dump(self.database, self.fd)
+        with open(self.filepath, "w") as fd:
+            json.dump(self.database, fd)
 
     def __getitem__(self, key):
         return self.database[key]
