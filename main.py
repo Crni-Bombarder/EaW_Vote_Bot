@@ -5,12 +5,13 @@ import time
 from src.database import IDDatabase
 from src.discord_bot import DiscordBot
 from src.spreadsheet import SpreadsheetHandler
+from src.commands import BotCommand
 
 def create_arg_parser():
     parser = argparse.ArgumentParser(description="A discord bot used to manage a user unique ID for vote through a google form")
     discord_token = parser.add_mutually_exclusive_group()
     discord_token.add_argument("--discord-token-file",
-                               default="./discord_token.txt",
+                               default="./database/discord_token.txt",
                                help="Path to a file containing a discord authentification token. Default to ./discord_token.txt")
     discord_token.add_argument("--discord-token",
                                help="Discord authentification token to use")
@@ -19,7 +20,7 @@ def create_arg_parser():
                         default="./google_credentials.json",
                         help="Path to a file containing a google authentification token. Default to google_credentials.json")
     parser.add_argument("--database-file",
-                        default="./database.txt",
+                        default="./database/database.txt",
                         help="The path of the database file, default to database.txt")
     parser.add_argument("--reset-database",
                         action="store_true",
@@ -28,16 +29,11 @@ def create_arg_parser():
                         action="store_true",
                         help="Display the database specified and quit")
     parser.add_argument("--bot-command",
-                        default="$eaw-vote",
-                        help="Prefix for the bot commands, default to $eaw-vote")
-    parser.add_argument("--bot-channel",
-                        default="general",
-                        help="Channel name that the bot will parse, default to general")
-    parser.add_argument("admin_name",
-                        help="Discord ID of the admin")
-    parser.add_argument("spreadsheet_id",
-                        nargs='?',
-                        help="ID of the Google Sheet, included in the URL (Example: https://docs.google.com/spreadsheets/d/<ID>/edit#gid=0). Deactivate this feature if not provided")
+                        default="",
+                        help="Prefix for the bot commands, default to a ping to the bot")
+    parser.add_argument("--authorization-file",
+                        default="./database/authorization.json",
+                        help="Filepath to the json containing the authorization, default to ./database/authorization.json")
 
     return parser
 
@@ -68,13 +64,13 @@ if __name__ == "__main__":
     else:
         discord_token = get_discord_token_from_file(args.discord_token_file)
 
-    spreadsheet = None
-    if args.spreadsheet_id:
-        spreadsheet = SpreadsheetHandler(args.google_token_file, args.spreadsheet_id, "Sheet1")
-    database = IDDatabase(args.database_file, spreadsheet, args.reset_database)
+    database = IDDatabase(args.database_file, args.reset_database)
     if args.display_database:
         print(str(database))
         sys.exit()
 
-    discord_bot = DiscordBot(database, discord_token, args.bot_channel, args.bot_command, args.admin_name)
+    BotCommand.init_commands()
+    print(BotCommand.list_command)
+
+    discord_bot = DiscordBot(database, discord_token, args.bot_command, args.authorization_file)
     discord_bot.run()

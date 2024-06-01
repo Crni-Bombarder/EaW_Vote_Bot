@@ -2,6 +2,10 @@ import discord
 import string
 import random
 import re
+import shlex
+
+from src.authorization import Authorization
+from src.commands import BotCommand
 
 class DiscordBot:
 
@@ -15,13 +19,12 @@ class DiscordBot:
 
     RE_SEND_VOTE_ID_TO_ROLE = re.compile('\\S*\\s+send-vote-id-to-role\\s"(.*)"\\s*')
 
-    def __init__(self, database, discord_token, bot_channel, bot_command, admin_name):
+    def __init__(self, database, discord_token, bot_command, auth_file):
         self.database = database
         self.discord_token = discord_token
-        self.bot_channel = bot_channel
         self.bot_command = bot_command
-        self.admin_name = admin_name
-        self.botname = "EaW VOte ID Bot"
+        self.authorization = Authorization(auth_file)
+        self.botname = "EaW Vote ID Bot"
 
         self.intents = discord.Intents.default()
         self.intents.message_content = True
@@ -29,14 +32,33 @@ class DiscordBot:
 
         self.client = discord.Client(intents=self.intents)
 
+        self.ready = False
+
         @self.client.event
         async def on_ready():
             print(f'We have logged in as {self.client.user}')
+            if not self.bot_command:
+                self.bot_command = f"<@{self.client.user.id}>"
+            self.ready = True
 
         @self.client.event
         async def on_message(message):
-            if message.author == self.client.user or message.channel.name != self.bot_channel or len(message.content) > 100:
+            if not self.ready or message.author == self.client.user or (message.author.name not in self.authorization["admin"] and isinstance(message.channel, discord.DMChannel)):
                 return
+            
+            if message.content.startswith(self.bot_command):
+                tokens = shlex.split(message.content.strip())
+
+                if len(tokens) < 2:
+                    return
+
+                print(tokens)
+                if self.check_authorization(message, tokens[1]):
+                    await BotCommand.exec_command(message, tokens[1:])
+                else:
+                    await message.author.send(f'Unknown command: {tokens[1]}')
+
+            return
 
             if message.content.startswith(self.bot_command):
                 tokens = message.content.strip().split(" ")
@@ -107,6 +129,18 @@ class DiscordBot:
     def generate_vote_id(self):
         return "".join(random.choices(DiscordBot.VOTE_ID_ELEMENTS, k=DiscordBot.VOTE_ID_LENGTH))
 
+    def check_authorization(self, message, command):
+        if command not in self.authorization["commands"]:
+            return False
+        
+        roles = []
+        if not isinstance(message.channel, discord.DMChannel):
+            roles = [x.name for x in message.author.roles]
+        return (message.author.name in self.authorization["admin"]) or (any(x in roles for x in self.authorization["commands"][command]))
 
     def run(self):
         self.client.run(self.discord_token)
+
+def create_cmd(name, desc, authorization, func):
+    pass
+
