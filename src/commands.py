@@ -52,7 +52,7 @@ Manage the admin accounts for the bot\n\
 
     async def exec(self, bot, message, argv):
         if len(argv) < 2:
-            await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage_admin"])
+            await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-admin"])
             return
         
         if argv[1] == "list":
@@ -86,7 +86,57 @@ Manage the admin accounts for the bot\n\
 
 class ManagePermissionCommand(BotCommand):
     def __init__(self):
-        super().__init__("manage-permission", "Used to manage the command permissions", "Help sends")
+        super().__init__("manage-permission",
+                         "Manage the command permissions",
+                         "**manage-permission** add|remove|list\n\
+Manage the command permissions. List the user roles that can call the command. No roles means it is admin only.\n\
+* **add** *command* *role*\nAllow users with *role* to call *command*\n\
+* **remove** *command* *role*\nNo longer allow users with *role* to call *command*\n\
+* **list** *[command]*\nShow the roles that can call *command* if specified, else the permissions of all the commands")
 
     async def exec(self, bot, message, argv):
-        await message.author.send(f'Execute command: {argv[0]}')
+        if len(argv) < 2:
+            await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-permission"])
+            return
+        
+        if argv[1] == "list":
+            if len(argv) > 2 and argv[2] in bot.authorization["commands"]:
+                embed = discord.Embed(title=f"**{argv[2]}** permissions")
+                roles = bot.authorization["commands"][argv[2]]
+                if not roles:
+                    roles = ["Admin only"]
+                for role in roles:
+                    embed.add_field(name=role, value="", inline=False)
+            else:
+                embed = discord.Embed(title=f"All command permissions")
+                for cmd, roles in bot.authorization["commands"].items():
+                    if not roles:
+                        roles = ["Admin only"]
+                    desc = f"* {roles[0]}"
+                    for i in range(1, len(roles)):
+                        desc += f"\n* {roles[i]}"
+                    embed.add_field(name=cmd, value=desc, inline=False)
+            await message.author.send(f'', embed=embed)
+            return
+        
+        if len(argv) < 4 or argv[2] not in bot.authorization["commands"]:
+            embed = discord.Embed(title=f'Not enough argument or wrong command')
+            await message.author.send('', embed=embed)
+            await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-permission"])
+            return
+        
+        if argv[1] == "add":
+            if argv[3] not in bot.authorization["commands"][argv[2]]:
+                bot.authorization["commands"][argv[2]].append(argv[3])
+            bot.authorization.save_to_file()
+            await BotCommand.list_command["manage-permission"].exec(bot, message, ["manage-permission" ,"list", argv[2]])
+            return
+
+        if argv[1] == "remove":
+            if argv[3] in bot.authorization["commands"][argv[2]]:
+                bot.authorization["commands"][argv[2]].remove(argv[3])
+            bot.authorization.save_to_file()
+            await BotCommand.list_command["manage-permission"].exec(bot, message, ["manage-permission" ,"list", argv[2]])
+            return
+        
+        await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-permission"])

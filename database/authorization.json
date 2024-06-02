@@ -1,1 +1,1 @@
-{"admin": ["crnibombarder"], "commands": {"help": ["@everyone"], "manage-admin": []}}
+{"admin": ["crnibombarder"], "commands": {"help": ["@everyone"], "manage-admin": [], "manage-permission": []}}

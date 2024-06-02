@@ -52,7 +52,6 @@ class DiscordBot:
                 if len(tokens) < 2:
                     return
 
-                print(tokens)
                 if self.check_authorization(message, tokens[1]):
                     await BotCommand.exec_command(self, message, tokens[1:])
                 else:
