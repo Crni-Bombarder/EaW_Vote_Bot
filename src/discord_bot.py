@@ -3,6 +3,7 @@ import string
 import random
 import re
 import shlex
+import asyncio
 
 from src.authorization import Authorization
 from src.commands import BotCommand
@@ -55,7 +56,8 @@ class DiscordBot:
                 if self.check_authorization(message, tokens[1]):
                     await BotCommand.exec_command(self, message, tokens[1:])
                 else:
-                    await message.author.send(f'Unknown command: {tokens[1]}')
+                    embed = discord.Embed(title=f'Unknown command: {tokens[1]}')
+                    await message.channel.send("", embed=embed)
 
             return
 
@@ -138,7 +140,7 @@ class DiscordBot:
         return (message.author.name in self.authorization["admin"]) or (any(x in roles for x in self.authorization["commands"][command]))
 
     def run(self):
-        self.client.run(self.discord_token)
+        asyncio.run(self.client.start(self.discord_token))
 
 def create_cmd(name, desc, authorization, func):
     pass
