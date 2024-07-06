@@ -31,9 +31,9 @@ def create_arg_parser():
     parser.add_argument("--bot-command",
                         default="",
                         help="Prefix for the bot commands, default to a ping to the bot")
-    parser.add_argument("--authorization-file",
-                        default="./database/authorization.json",
-                        help="Filepath to the json containing the authorization, default to ./database/authorization.json")
+    parser.add_argument("--settings-file",
+                        default="./database/settings.json",
+                        help="Filepath to the json containing the settings, default to ./database/settings.json")
 
     return parser
 
@@ -72,5 +72,5 @@ if __name__ == "__main__":
     BotCommand.init_commands()
     print(BotCommand.list_command)
 
-    discord_bot = DiscordBot(database, discord_token, args.bot_command, args.authorization_file)
+    discord_bot = DiscordBot(database, discord_token, args.bot_command, args.settings_file)
     discord_bot.run()

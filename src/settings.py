@@ -7,8 +7,10 @@ class Settings:
         self.filepath = filepath
         self.default_database = {
             "admin": [],
+            "watched_channels": [],
             "commands": {}
             }
+        self.database = self.default_database
         if os.path.isfile(self.filepath):
             self.load_from_file()
 

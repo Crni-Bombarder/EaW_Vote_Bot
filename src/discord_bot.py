@@ -4,7 +4,7 @@ import random
 import re
 import shlex
 
-from settings import Settings
+from src.settings import Settings
 from src.commands import BotCommand
 
 class DiscordBot:
@@ -43,7 +43,10 @@ class DiscordBot:
 
         @self.client.event
         async def on_message(message):
-            if not self.ready or message.author == self.client.user or (message.author.name not in self.authorization["admin"] and isinstance(message.channel, discord.DMChannel)):
+            if not self.ready or\
+                message.author == self.client.user or\
+                (message.author.name not in self.settings["admin"] and isinstance(message.channel, discord.DMChannel)) or\
+                (not isinstance(message.channel, discord.DMChannel) and message.channel.name not in self.settings["watched_channels"] ):
                 return
             
             if message.content.startswith(self.bot_command):
@@ -55,7 +58,10 @@ class DiscordBot:
                 if self.check_authorization(message, tokens[1]):
                     await BotCommand.exec_command(self, message, tokens[1:])
                 else:
-                    await message.author.send(f'Unknown command: {tokens[1]}')
+                    try:
+                        await message.author.send(f'Unknown command: {tokens[1]}')
+                    except:
+                        await message.channel.send(f'Unknown command: {tokens[1]}')
 
             return
 
