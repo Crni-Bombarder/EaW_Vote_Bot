@@ -9,6 +9,11 @@ class Settings:
             "admin": [],
             "watched_channels": [],
             "senior_vote_forums": [],
+            "senior_vote_list": {},
+            "senior_vote_reactions": {
+                "yes":  ":thumbsup:",
+                "abstaining": ":no_mouth:",
+                "against":   ":thumbsdown:"},
             "commands": {}
             }
         self.database = self.default_database
@@ -21,7 +26,7 @@ class Settings:
 
     def save_to_file(self):
         with open(self.filepath, "w") as fd:
-            json.dump(self.database, fd)
+            json.dump(self.database, fd, indent=4)
 
     def __getitem__(self, key):
         if key not in self.database:

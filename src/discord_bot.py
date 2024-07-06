@@ -3,6 +3,7 @@ import string
 import random
 import re
 import shlex
+import time
 
 from src.settings import Settings
 from src.commands import BotCommand
@@ -29,6 +30,7 @@ class DiscordBot:
         self.intents = discord.Intents.default()
         self.intents.message_content = True
         self.intents.members = True
+        self.intents.guilds = True
 
         self.client = discord.Client(intents=self.intents)
 
@@ -40,6 +42,24 @@ class DiscordBot:
             if not self.bot_command:
                 self.bot_command = f"<@{self.client.user.id}>"
             self.ready = True
+
+        @self.client.event
+        async def on_thread_create(thread):
+            channel = thread.guild.get_channel(thread.parent_id)
+            if channel.name not in self.settings["senior_vote_forums"]:
+                return
+            
+            self.settings["senior_vote_list"][thread.id] = {"time_started": int(time.time())}
+            self.settings.save_to_file()
+
+            # Add voting reaction
+            msg = await thread.fetch_message(thread.id)
+            await msg.add_reaction(self.settings["senior_vote_reactions"]["yes"])
+            await msg.add_reaction(self.settings["senior_vote_reactions"]["abstaining"])
+            await msg.add_reaction(self.settings["senior_vote_reactions"]["against"])
+
+            embed = discord.Embed(title=thread.name, description="Vote started")
+            await thread.send("", embed=embed)
 
         @self.client.event
         async def on_message(message):

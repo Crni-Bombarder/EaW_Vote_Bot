@@ -37,6 +37,7 @@ class BotCommand:
         ManagePermissionCommand()
         ManageWatchedChannels()
         ManageSeniorVoteForums()
+        ManageSeniorVoteReactions()
         SeniorVoteCommand()
 
 class HelpCommand(BotCommand):
@@ -250,7 +251,58 @@ Manage the vote forum watched by the bot. Threads created in them will automatic
             return
 
         await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-seniorvoteforums"])
+
+class ManageSeniorVoteReactions(BotCommand):
+    def __init__(self):
+        super().__init__("manage-seniorvotereactions",
+                         Scope.PRIVATE,
+                         "Manage the reactions used for the senior votes",
+                         "**manage-seniorvoteforums** yes|abstaining|against|list\n\
+Manage the reactions used for the senior votes\n\
+* **yes** *emoji*\nSet the reaction used for a yes as *emoji*\n\
+* **abstaining** *emoji*\nSet the reaction used for abstaining as *emoji*\n\
+* **against** *emoji*\nSet the reaction used against as *emoji*\n\
+* **list**\nShow the current reactions used for the votes")
+
+    async def exec(self, bot, message, argv):
+        if len(argv) < 2:
+            await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-seniorvotereactions"])
+            return
         
+        if argv[1] == "list":
+            embed = discord.Embed(title=f"Reactions used for the vote")
+            embed.add_field(name="Yes", value=bot.settings["senior_vote_reactions"]["yes"], inline=False)
+            embed.add_field(name="Abstaining", value=bot.settings["senior_vote_reactions"]["abstaining"], inline=False)
+            embed.add_field(name="Against", value=bot.settings["senior_vote_reactions"]["against"], inline=False)
+            await send_private_message(message, f'', embed=embed)
+            return
+        
+        if len(argv) < 3:
+            embed = discord.Embed(title=f'Not enough arguments or wrong command')
+            await send_private_message(message, '', embed=embed)
+            await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-seniorvotereactions"])
+            return
+        
+        if argv[1] == "yes":
+            bot.settings["senior_vote_reactions"]["yes"] = argv[2]
+            bot.settings.save_to_file()
+            await BotCommand.list_command["manage-seniorvotereactions"].exec(bot, message, ["manage-seniorvotereactions" ,"list"])
+            return
+        
+        if argv[1] == "abstaining":
+            bot.settings["senior_vote_reactions"]["abstaining"] = argv[2]
+            bot.settings.save_to_file()
+            await BotCommand.list_command["manage-seniorvotereactions"].exec(bot, message, ["manage-seniorvotereactions" ,"list"])
+            return
+
+        if argv[1] == "against":
+            bot.settings["senior_vote_reactions"]["against"] = argv[2]
+            bot.settings.save_to_file()
+            await BotCommand.list_command["manage-seniorvotereactions"].exec(bot, message, ["manage-seniorvotereactions" ,"list"])
+            return
+
+        await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-seniorvotereactions"])
+
 class SeniorVoteCommand(BotCommand):
     def __init__(self):
         super().__init__("seniorvote",
