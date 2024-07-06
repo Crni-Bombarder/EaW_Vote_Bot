@@ -4,7 +4,7 @@ import random
 import re
 import shlex
 
-from src.authorization import Authorization
+from settings import Settings
 from src.commands import BotCommand
 
 class DiscordBot:
@@ -19,11 +19,11 @@ class DiscordBot:
 
     RE_SEND_VOTE_ID_TO_ROLE = re.compile('\\S*\\s+send-vote-id-to-role\\s"(.*)"\\s*')
 
-    def __init__(self, database, discord_token, bot_command, auth_file):
+    def __init__(self, database, discord_token, bot_command, settings_file):
         self.database = database
         self.discord_token = discord_token
         self.bot_command = bot_command
-        self.authorization = Authorization(auth_file)
+        self.settings = Settings(settings_file)
         self.botname = "EaW Vote ID Bot"
 
         self.intents = discord.Intents.default()
@@ -129,13 +129,13 @@ class DiscordBot:
         return "".join(random.choices(DiscordBot.VOTE_ID_ELEMENTS, k=DiscordBot.VOTE_ID_LENGTH))
 
     def check_authorization(self, message, command):
-        if command not in self.authorization["commands"]:
+        if command not in self.settings["commands"]:
             return False
         
         roles = []
         if not isinstance(message.channel, discord.DMChannel):
             roles = [x.name for x in message.author.roles]
-        return (message.author.name in self.authorization["admin"]) or (any(x in roles for x in self.authorization["commands"][command]))
+        return (message.author.name in self.settings["admin"]) or (any(x in roles for x in self.authorization["commands"][command]))
 
     def run(self):
         self.client.run(self.discord_token)

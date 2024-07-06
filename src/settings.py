@@ -1,11 +1,14 @@
 import os
 import json
 
-class Authorization:
+class Settings:
 
     def __init__(self, filepath):
         self.filepath = filepath
-        self.database = {"admin": [], "commands": {}}
+        self.default_database = {
+            "admin": [],
+            "commands": {}
+            }
         if os.path.isfile(self.filepath):
             self.load_from_file()
 
@@ -18,4 +21,6 @@ class Authorization:
             json.dump(self.database, fd)
 
     def __getitem__(self, key):
+        if key not in self.database:
+            self.database[key] = self.default_database[key]
         return self.database[key]
