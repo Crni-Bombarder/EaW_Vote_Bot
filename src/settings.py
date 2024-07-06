@@ -8,6 +8,7 @@ class Settings:
         self.default_database = {
             "admin": [],
             "watched_channels": [],
+            "senior_vote_forums": [],
             "commands": {}
             }
         self.database = self.default_database

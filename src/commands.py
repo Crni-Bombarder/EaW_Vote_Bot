@@ -36,7 +36,8 @@ class BotCommand:
         ManageAdminCommand()
         ManagePermissionCommand()
         ManageWatchedChannels()
-        AdministrativeVoteCommand()
+        ManageSeniorVoteForums()
+        SeniorVoteCommand()
 
 class HelpCommand(BotCommand):
 
@@ -164,7 +165,7 @@ class ManageWatchedChannels(BotCommand):
     def __init__(self):
         super().__init__("manage-watchedchannels",
                          Scope.PRIVATE,
-                         "Manage the channels watched by the bot",
+                         "Manage the channels watched by the bot in order to execute commands",
                          "**manage-watchedchannel** add|remove|list\n\
 Manage the channels watched by the bot. A watched channel allow users to execute commands in them\n\
 * **add** *channel_name*\nAdd the channel named *channel_name* to the watched channel list\n\
@@ -184,7 +185,7 @@ Manage the channels watched by the bot. A watched channel allow users to execute
             return
         
         if len(argv) < 3:
-            embed = discord.Embed(title=f'Not enough argument or wrong command')
+            embed = discord.Embed(title=f'Not enough arguments or wrong command')
             await send_private_message(message, '', embed=embed)
             await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-watchedchannels"])
             return
@@ -204,12 +205,57 @@ Manage the channels watched by the bot. A watched channel allow users to execute
             return
 
         await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-watchedchannels"])
-        
-class AdministrativeVoteCommand(BotCommand):
+
+class ManageSeniorVoteForums(BotCommand):
     def __init__(self):
-        super().__init__("manage-vote",
+        super().__init__("manage-seniorvoteforums",
+                         Scope.PRIVATE,
+                         "Manage the vote forums watched by the bot",
+                         "**manage-seniorvoteforums** add|remove|list\n\
+Manage the vote forum watched by the bot. Threads created in them will automaticaly be added as new vote\n\
+* **add** *forum_name*\nAdd the forum named *forum_name* to the watched channel list\n\
+* **remove** *forum_name*\nRemove the forum named *forum_name* from the watched forum list\n\
+* **list**\nShow the list of watched forums")
+
+    async def exec(self, bot, message, argv):
+        if len(argv) < 2:
+            await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-seniorvoteforums"])
+            return
+        
+        if argv[1] == "list":
+            embed = discord.Embed(title=f"All watched Forums")
+            for channel in bot.settings["senior_vote_forums"]:
+                embed.add_field(name=channel, value="", inline=False)
+            await send_private_message(message, f'', embed=embed)
+            return
+        
+        if len(argv) < 3:
+            embed = discord.Embed(title=f'Not enough arguments or wrong command')
+            await send_private_message(message, '', embed=embed)
+            await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-seniorvoteforums"])
+            return
+        
+        if argv[1] == "add":
+            if argv[2] not in bot.settings["senior_vote_forums"]:
+                bot.settings["senior_vote_forums"].append(argv[2])
+            bot.settings.save_to_file()
+            await BotCommand.list_command["manage-seniorvoteforums"].exec(bot, message, ["manage-seniorvoteforums" ,"list"])
+            return
+
+        if argv[1] == "remove":
+            if argv[2] in bot.settings["senior_vote_forums"]:
+                bot.settings["senior_vote_forums"].remove(argv[2])
+            bot.settings.save_to_file()
+            await BotCommand.list_command["manage-seniorvoteforums"].exec(bot, message, ["manage-seniorvoteforums" ,"list"])
+            return
+
+        await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-seniorvoteforums"])
+        
+class SeniorVoteCommand(BotCommand):
+    def __init__(self):
+        super().__init__("seniorvote",
                          Scope.PUBLIC,
-                         "Start, stop, list, manage the votes currently running",
+                         "Start, stop, list, manage the senior votes currently running",
                          "**manage-vote** status|configuration\n\
 Manage the votes. A vote is running using a thread.\n\
 * **add** *command* *role*\nAllow users with *role* to call *command*\n\

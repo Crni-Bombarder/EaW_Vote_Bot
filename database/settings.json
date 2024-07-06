@@ -1,1 +1,17 @@
-{"admin": ["crnibombarder"], "commands": {"help": ["@everyone"], "manage-admin": [], "manage-permission": [], "manage-watchedchannels": [], "manage-vote": []}, "watched_channels": ["bot-here"]}
+{
+    "admin": [
+        "crnibombarder"
+    ],
+    "commands": {
+        "help": [
+            "@everyone"
+        ],
+        "manage-admin": [],
+        "manage-permission": [],
+        "manage-watchedchannels": [],
+        "manage-seniorvoteforums": [],
+        "seniorvote": []
+    },
+    "watched_channels": [],
+    "senior_vote_forums": []
+}
