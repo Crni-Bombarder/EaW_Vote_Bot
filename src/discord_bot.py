@@ -40,6 +40,7 @@ class DiscordBot:
         @self.client.event
         async def on_ready():
             print(f'We have logged in as {self.client.user}')
+            self.settings.load_from_file() # Reloading the setting in case of disconnection
             if not self.bot_command:
                 self.bot_command = f"<@{self.client.user.id}>"
             self.ready = True
@@ -48,6 +49,9 @@ class DiscordBot:
 
         @self.client.event
         async def on_thread_create(thread):
+            if thread.guild.id != self.settings["watched_guild_id"]:
+                return
+
             channel = thread.guild.get_channel(thread.parent_id)
             if channel.name not in self.settings["senior_vote_forums"]:
                 return
@@ -139,21 +143,20 @@ class DiscordBot:
         guild = self.client.get_guild(self.settings["watched_guild_id"])
         if not guild: return
 
-        print(f"Guild watched found: {guild.name}")
-        return
         # Get the number of voters
-        voters = await self.get_all_voters()
+        voters = await self.get_all_voters(guild)
 
         # For each running vote, check the number of votes
-
-        pass
+        for thread_id, content in self.settings["senior_vote_list"].items():
+            print(thread_id)
+            print(content)
 
     async def get_all_voters(self, guild):
         voters = set()
         roles = await guild.fetch_roles()
-        async for role in roles:
+        for role in roles:
             if role.name in self.settings["senior_vote_voter_roles"]:
-                voters.union(set(role.members))
+                voters.update(set([(member.name, member.id) for member in role.members]))
 
         return voters
 
