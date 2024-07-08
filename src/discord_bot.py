@@ -1,4 +1,5 @@
 import discord
+from discord.ext import tasks
 import string
 import random
 import re
@@ -42,14 +43,17 @@ class DiscordBot:
             if not self.bot_command:
                 self.bot_command = f"<@{self.client.user.id}>"
             self.ready = True
+            if not self.vote_parsing.is_running():
+                self.vote_parsing.start()
 
         @self.client.event
         async def on_thread_create(thread):
             channel = thread.guild.get_channel(thread.parent_id)
             if channel.name not in self.settings["senior_vote_forums"]:
                 return
-            
-            self.settings["senior_vote_list"][thread.id] = {"time_started": int(time.time())}
+
+            val_time = int(time.time())
+            self.settings["senior_vote_list"][thread.id] = {"time_started": val_time, "last_time_checked": val_time, "amendments": []}
             self.settings.save_to_file()
 
             # Add voting reaction
@@ -66,9 +70,9 @@ class DiscordBot:
             if not self.ready or\
                 message.author == self.client.user or\
                 (message.author.name not in self.settings["admin"] and isinstance(message.channel, discord.DMChannel)) or\
-                (not isinstance(message.channel, discord.DMChannel) and message.channel.name not in self.settings["watched_channels"] ):
+                (not isinstance(message.channel, discord.DMChannel) and message.channel.name not in self.settings["watched_channels"]):
                 return
-            
+
             if message.content.startswith(self.bot_command):
                 tokens = shlex.split(message.content.strip())
 
@@ -126,6 +130,37 @@ class DiscordBot:
                     case _:
                         await self.send_manual(message.author)
 
+    @tasks.loop(seconds=5)
+    async def vote_parsing(self):
+        if self.client.is_closed():
+            return
+
+        # Get the guild
+        guild = self.client.get_guild(self.settings["watched_guild_id"])
+        if not guild: return
+
+        print(f"Guild watched found: {guild.name}")
+        return
+        # Get the number of voters
+        voters = await self.get_all_voters()
+
+        # For each running vote, check the number of votes
+
+        pass
+
+    async def get_all_voters(self, guild):
+        voters = set()
+        roles = await guild.fetch_roles()
+        async for role in roles:
+            if role.name in self.settings["senior_vote_voter_roles"]:
+                voters.union(set(role.members))
+
+        return voters
+
+    async def get_all_votes(self, message_id, voters_set):
+        # Return a list
+        return []
+
     async def send_manual(self, user):
         await user.send(DiscordBot.STRING_MANUAL)
         if user.name == self.admin_name:
@@ -156,8 +191,12 @@ class DiscordBot:
 
     def check_authorization(self, message, command):
         if command not in self.settings["commands"]:
-            return False
-        
+            if command in BotCommand.list_command:
+                self.settings["commands"][command] = []
+                self.settings.save_to_file()
+            else:
+                return
+
         roles = []
         if not isinstance(message.channel, discord.DMChannel):
             roles = [x.name for x in message.author.roles]

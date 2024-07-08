@@ -29,15 +29,17 @@ class BotCommand:
             await BotCommand.list_command[argv[0]].exec(bot, message, argv)
             return False
         return True
-    
+
     @classmethod
     def init_commands(cls):
         HelpCommand()
+        ManageWatchedGuildCommand()
         ManageAdminCommand()
         ManagePermissionCommand()
         ManageWatchedChannels()
         ManageSeniorVoteForums()
         ManageSeniorVoteReactions()
+        ManageSeniorVoterRoles()
         SeniorVoteCommand()
 
 class HelpCommand(BotCommand):
@@ -56,7 +58,7 @@ class HelpCommand(BotCommand):
             embed = discord.Embed(title="Available command list")
             for cmd in BotCommand.list_command.values():
                 embed.add_field(name=cmd.name, value=cmd.short_desc, inline=False)
-        
+
         await send_private_message(message, '', embed=embed)
 
 class ManageAdminCommand(BotCommand):
@@ -74,18 +76,18 @@ Manage the admin accounts for the bot\n\
         if len(argv) < 2:
             await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-admin"])
             return
-        
+
         if argv[1] == "list":
             embed = discord.Embed(title="Admin list")
             for admin_name in bot.settings["admin"]:
                 embed.add_field(name=admin_name, value="", inline=False)
             await send_private_message(message, f'', embed=embed)
             return
-        
+
         if len(argv) < 3:
-            await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage_admin"])
+            await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-admin"])
             return
-        
+
         if argv[1] == "add":
             if argv[2] not in bot.settings["admin"]:
                 bot.settings["admin"].append(argv[2])
@@ -101,8 +103,53 @@ Manage the admin accounts for the bot\n\
             embed = discord.Embed(title=f'Removing as admin "{argv[2]}"')
             await send_private_message(message, f'', embed=embed)
             return
-        
-        await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage_admin"])
+
+        await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-admin"])
+
+class ManageWatchedGuildCommand(BotCommand):
+    def __init__(self):
+        super().__init__("manage-watchedguild",
+                         Scope.PRIVATE,
+                         "Manage the admin accounts for the bot",
+                         "**manage-admin** set|show\n\
+Manage the watched guild, the server used for all the automated task and commands\n\
+* **set** *guild_name*\nSet the name of the watched guild as *guild_name*\n\
+* **show**\nShow the name of the watched server")
+
+    async def exec(self, bot, message, argv):
+        if len(argv) < 2:
+            await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-watchedguild"])
+            return
+
+        if argv[1] == "show":
+            embed = discord.Embed(title="Watched Guild Name")
+            embed.add_field(name=bot.settings["watched_guild_name"], value=str(bot.settings["watched_guild_id"]), inline=False)
+            await send_private_message(message, f'', embed=embed)
+            return
+
+        if len(argv) < 3:
+            await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-watchedguild"])
+            return
+
+        if argv[1] == "set":
+            name = argv[2]
+            id = None
+            for guild in bot.client.guilds:
+                if guild.name == name:
+                    id = int(guild.id)
+                    break
+            if not id:
+                embed = discord.Embed(title=f'Cannot find the guild "{name}"')
+                await send_private_message(message, f'', embed=embed)
+                return
+            bot.settings["watched_guild_name"] = name
+            bot.settings["watched_guild_id"]   = id
+            bot.settings.save_to_file()
+            await BotCommand.list_command["manage-watchedguild"].exec(bot, message, ["manage-watchedguild" ,"show"])
+            return
+
+        await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-watchedguild"])
+
 
 class ManagePermissionCommand(BotCommand):
     def __init__(self):
@@ -119,7 +166,7 @@ Manage the command permissions. List the user roles that can call the command. N
         if len(argv) < 2:
             await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-permission"])
             return
-        
+
         if argv[1] == "list":
             if len(argv) > 2 and argv[2] in bot.settings["commands"]:
                 embed = discord.Embed(title=f"**{argv[2]}** permissions")
@@ -139,13 +186,13 @@ Manage the command permissions. List the user roles that can call the command. N
                     embed.add_field(name=cmd, value=desc, inline=False)
             await send_private_message(message, f'', embed=embed)
             return
-        
+
         if len(argv) < 4 or argv[2] not in bot.settings["commands"]:
             embed = discord.Embed(title=f'Not enough argument or wrong command')
             await send_private_message(message, '', embed=embed)
             await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-permission"])
             return
-        
+
         if argv[1] == "add":
             if argv[3] not in bot.settings["commands"][argv[2]]:
                 bot.settings["commands"][argv[2]].append(argv[3])
@@ -159,7 +206,7 @@ Manage the command permissions. List the user roles that can call the command. N
             bot.settings.save_to_file()
             await BotCommand.list_command["manage-permission"].exec(bot, message, ["manage-permission" ,"list", argv[2]])
             return
-        
+
         await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-permission"])
 
 class ManageWatchedChannels(BotCommand):
@@ -177,20 +224,20 @@ Manage the channels watched by the bot. A watched channel allow users to execute
         if len(argv) < 2:
             await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-watchedchannels"])
             return
-        
+
         if argv[1] == "list":
             embed = discord.Embed(title=f"All watched channels")
             for channel in bot.settings["watched_channels"]:
                 embed.add_field(name=channel, value="", inline=False)
             await send_private_message(message, f'', embed=embed)
             return
-        
+
         if len(argv) < 3:
             embed = discord.Embed(title=f'Not enough arguments or wrong command')
             await send_private_message(message, '', embed=embed)
             await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-watchedchannels"])
             return
-        
+
         if argv[1] == "add":
             if argv[2] not in bot.settings["watched_channels"]:
                 bot.settings["watched_channels"].append(argv[2])
@@ -222,20 +269,20 @@ Manage the vote forum watched by the bot. Threads created in them will automatic
         if len(argv) < 2:
             await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-seniorvoteforums"])
             return
-        
+
         if argv[1] == "list":
             embed = discord.Embed(title=f"All watched Forums")
             for channel in bot.settings["senior_vote_forums"]:
                 embed.add_field(name=channel, value="", inline=False)
             await send_private_message(message, f'', embed=embed)
             return
-        
+
         if len(argv) < 3:
             embed = discord.Embed(title=f'Not enough arguments or wrong command')
             await send_private_message(message, '', embed=embed)
             await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-seniorvoteforums"])
             return
-        
+
         if argv[1] == "add":
             if argv[2] not in bot.settings["senior_vote_forums"]:
                 bot.settings["senior_vote_forums"].append(argv[2])
@@ -268,7 +315,7 @@ Manage the reactions used for the senior votes\n\
         if len(argv) < 2:
             await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-seniorvotereactions"])
             return
-        
+
         if argv[1] == "list":
             embed = discord.Embed(title=f"Reactions used for the vote")
             embed.add_field(name="Yes", value=bot.settings["senior_vote_reactions"]["yes"], inline=False)
@@ -276,19 +323,19 @@ Manage the reactions used for the senior votes\n\
             embed.add_field(name="Against", value=bot.settings["senior_vote_reactions"]["against"], inline=False)
             await send_private_message(message, f'', embed=embed)
             return
-        
+
         if len(argv) < 3:
             embed = discord.Embed(title=f'Not enough arguments or wrong command')
             await send_private_message(message, '', embed=embed)
             await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-seniorvotereactions"])
             return
-        
+
         if argv[1] == "yes":
             bot.settings["senior_vote_reactions"]["yes"] = argv[2]
             bot.settings.save_to_file()
             await BotCommand.list_command["manage-seniorvotereactions"].exec(bot, message, ["manage-seniorvotereactions" ,"list"])
             return
-        
+
         if argv[1] == "abstaining":
             bot.settings["senior_vote_reactions"]["abstaining"] = argv[2]
             bot.settings.save_to_file()
@@ -303,6 +350,51 @@ Manage the reactions used for the senior votes\n\
 
         await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-seniorvotereactions"])
 
+class ManageSeniorVoterRoles(BotCommand):
+    def __init__(self):
+        super().__init__("manage-seniorvoterroles",
+                         Scope.PRIVATE,
+                         "Manage who has the right to vote",
+                         "**manage-seniorvoterroles** add|remove|list\n\
+Manage the roles that can vote.\n\
+* **add** *role_name*\nAdd the role named *role_name* to the voter role list\n\
+* **remove** *role_name*\nRemove the role named *forum_name* from the voter role list\n\
+* **list**\nShow the list of the voter roles")
+
+    async def exec(self, bot, message, argv):
+        if len(argv) < 2:
+            await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-seniorvoterroles"])
+            return
+
+        if argv[1] == "list":
+            embed = discord.Embed(title=f"All voter roles")
+            for role in bot.settings["senior_vote_voter_roles"]:
+                embed.add_field(name=role, value="", inline=False)
+            await send_private_message(message, f'', embed=embed)
+            return
+
+        if len(argv) < 3:
+            embed = discord.Embed(title=f'Not enough arguments or wrong command')
+            await send_private_message(message, '', embed=embed)
+            await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-seniorvoterroles"])
+            return
+
+        if argv[1] == "add":
+            if argv[2] not in bot.settings["senior_vote_voter_roles"]:
+                bot.settings["senior_vote_voter_roles"].append(argv[2])
+            bot.settings.save_to_file()
+            await BotCommand.list_command["manage-seniorvoterroles"].exec(bot, message, ["manage-seniorvoterroles" ,"list"])
+            return
+
+        if argv[1] == "remove":
+            if argv[2] in bot.settings["senior_vote_voter_roles"]:
+                bot.settings["senior_vote_voter_roles"].remove(argv[2])
+            bot.settings.save_to_file()
+            await BotCommand.list_command["manage-seniorvoterroles"].exec(bot, message, ["manage-seniorvoterroles" ,"list"])
+            return
+
+        await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-seniorvoterroles"])
+
 class SeniorVoteCommand(BotCommand):
     def __init__(self):
         super().__init__("seniorvote",
@@ -313,6 +405,6 @@ Manage the votes. A vote is running using a thread.\n\
 * **add** *command* *role*\nAllow users with *role* to call *command*\n\
 * **remove** *command* *role*\nNo longer allow users with *role* to call *command*\n\
 * **list** *[command]*\nShow the roles that can call *command* if specified, else the permissions of all the commands")
-        
+
         async def exec(self, bot, message, argv):
             pass

@@ -7,6 +7,8 @@ class Settings:
         self.filepath = filepath
         self.default_database = {
             "admin": [],
+            "watched_guild_name": "",
+            "watched_guild_id": 0,
             "watched_channels": [],
             "senior_vote_forums": [],
             "senior_vote_list": {},
@@ -32,3 +34,6 @@ class Settings:
         if key not in self.database:
             self.database[key] = self.default_database[key]
         return self.database[key]
+
+    def __setitem__(self, key, value):
+        self.database[key] = value
