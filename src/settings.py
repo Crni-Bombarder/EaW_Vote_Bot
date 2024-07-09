@@ -13,6 +13,7 @@ class Settings:
             "senior_vote_forums": [],
             "senior_vote_list": {},
             "senior_vote_voter_roles": [],
+            "senior_vote_blacklisted_voter_roles": [],
             "senior_vote_reactions": {
                 "yes":  ":thumbsup:",
                 "abstaining": ":no_mouth:",

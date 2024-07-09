@@ -150,6 +150,8 @@ class DiscordBot:
         for thread_id, content in self.settings["senior_vote_list"].items():
             print(thread_id)
             print(content)
+            thread = await guild.fetch_channel(thread_id)
+            await self.get_all_votes(thread, voters)
 
     async def get_all_voters(self, guild):
         voters = set()
@@ -158,10 +160,17 @@ class DiscordBot:
             if role.name in self.settings["senior_vote_voter_roles"]:
                 voters.update(set([(member.name, member.id) for member in role.members]))
 
+        for role in roles:
+            if role.name in self.settings["senior_vote_blacklisted_voter_roles"]:
+                voters.difference_update(set([(member.name, member.id) for member in role.members]))
+
         return voters
 
-    async def get_all_votes(self, message_id, voters_set):
-        # Return a list
+    async def get_all_votes(self, thread, voters_set):
+        root_message = await thread.fetch_message(thread.id)
+        for reaction in root_message.reactions:
+            print(reaction.emoji)
+            print(reaction.count)
         return []
 
     async def send_manual(self, user):

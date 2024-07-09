@@ -40,6 +40,7 @@ class BotCommand:
         ManageSeniorVoteForums()
         ManageSeniorVoteReactions()
         ManageSeniorVoterRoles()
+        ManageSeniorVoterRolesBlacklist()
         SeniorVoteCommand()
 
 class HelpCommand(BotCommand):
@@ -358,7 +359,7 @@ class ManageSeniorVoterRoles(BotCommand):
                          "**manage-seniorvoterroles** add|remove|list\n\
 Manage the roles that can vote.\n\
 * **add** *role_name*\nAdd the role named *role_name* to the voter role list\n\
-* **remove** *role_name*\nRemove the role named *forum_name* from the voter role list\n\
+* **remove** *role_name*\nRemove the role named *role_name* from the voter role list\n\
 * **list**\nShow the list of the voter roles")
 
     async def exec(self, bot, message, argv):
@@ -394,6 +395,51 @@ Manage the roles that can vote.\n\
             return
 
         await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-seniorvoterroles"])
+
+class ManageSeniorVoterRolesBlacklist(BotCommand):
+    def __init__(self):
+        super().__init__("manage-seniorvoterrolesblacklist",
+                         Scope.PRIVATE,
+                         "Manage what role unable the voting right",
+                         "**manage-seniorvoterrolesblacklist** add|remove|list\n\
+Manage what role unable the voting right.\n\
+* **add** *role_name*\nAdd the role named *role_name* to the voter role blacklist\n\
+* **remove** *role_name*\nRemove the role named *role_name* from the voter role blacklist\n\
+* **list**\nShow the list of the voter blacklistes")
+
+    async def exec(self, bot, message, argv):
+        if len(argv) < 2:
+            await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-seniorvoterrolesblacklist"])
+            return
+
+        if argv[1] == "list":
+            embed = discord.Embed(title=f"All blacklisted voter roles")
+            for role in bot.settings["senior_vote_blacklisted_voter_roles"]:
+                embed.add_field(name=role, value="", inline=False)
+            await send_private_message(message, f'', embed=embed)
+            return
+
+        if len(argv) < 3:
+            embed = discord.Embed(title=f'Not enough arguments or wrong command')
+            await send_private_message(message, '', embed=embed)
+            await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-seniorvoterrolesblacklist"])
+            return
+
+        if argv[1] == "add":
+            if argv[2] not in bot.settings["senior_vote_blacklisted_voter_roles"]:
+                bot.settings["senior_vote_blacklisted_voter_roles"].append(argv[2])
+            bot.settings.save_to_file()
+            await BotCommand.list_command["manage-seniorvoterrolesblacklist"].exec(bot, message, ["manage-seniorvoterrolesblacklist" ,"list"])
+            return
+
+        if argv[1] == "remove":
+            if argv[2] in bot.settings["senior_vote_blacklisted_voter_roles"]:
+                bot.settings["senior_vote_blacklisted_voter_roles"].remove(argv[2])
+            bot.settings.save_to_file()
+            await BotCommand.list_command["manage-seniorvoterrolesblacklist"].exec(bot, message, ["manage-seniorvoterrolesblacklist" ,"list"])
+            return
+
+        await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-seniorvoterrolesblacklist"])
 
 class SeniorVoteCommand(BotCommand):
     def __init__(self):
