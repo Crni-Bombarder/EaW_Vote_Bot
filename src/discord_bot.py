@@ -5,6 +5,7 @@ import random
 import re
 import shlex
 import time
+from asyncio import Future
 
 from src.settings import Settings
 from src.commands import BotCommand
@@ -36,6 +37,7 @@ class DiscordBot:
         self.client = discord.Client(intents=self.intents)
 
         self.ready = False
+        self.vote_list_sem = None
 
         @self.client.event
         async def on_ready():
@@ -45,6 +47,7 @@ class DiscordBot:
                 self.bot_command = f"<@{self.client.user.id}>"
             self.ready = True
             if not self.vote_parsing.is_running():
+                self.vote_list_sem = [False, None]
                 self.vote_parsing.start()
 
         @self.client.event
@@ -56,9 +59,16 @@ class DiscordBot:
             if channel.name not in self.settings["senior_vote_forums"]:
                 return
 
+            if self.vote_list_sem[0]:
+                await self.vote_list_sem[1]
+            self.vote_list_sem[1] = Future()
+            self.vote_list_sem[0] = True
             val_time = int(time.time())
             self.settings["senior_vote_list"][thread.id] = {"time_started": val_time, "last_time_checked": val_time, "amendments": []}
             self.settings.save_to_file()
+
+            self.vote_list_sem[1].set_result(True)
+            self.vote_list_sem[0] = False
 
             # Add voting reaction
             msg = await thread.fetch_message(thread.id)
@@ -147,13 +157,22 @@ class DiscordBot:
         voters = await self.get_all_voters(guild)
 
         # For each running vote, check the number of votes
+        if self.vote_list_sem[0]:
+            await self.vote_list_sem[1]
+        self.vote_list_sem[1] = Future()
+        self.vote_list_sem[0] = True
+
         for thread_id, content in self.settings["senior_vote_list"].items():
             print(thread_id)
             print(content)
             thread = await guild.fetch_channel(thread_id)
-            results = await self.get_all_votes(thread, voters)
+            root_message = await thread.fetch_message(thread_id)
+            results = await self.get_all_votes(root_message, voters)
 
             print(results)
+
+        self.vote_list_sem[1].set_result(True)
+        self.vote_list_sem[0] = False
 
     async def get_all_voters(self, guild):
         voters = set()
