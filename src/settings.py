@@ -15,9 +15,9 @@ class Settings:
             "senior_vote_voter_roles": [],
             "senior_vote_blacklisted_voter_roles": [],
             "senior_vote_reactions": {
-                "yes":  ":thumbsup:",
-                "abstaining": ":no_mouth:",
-                "against":   ":thumbsdown:"},
+                "yes": "\ud83d\udc4d",
+                "abstaining": "\ud83d\ude36",
+                "against": "\ud83d\udc4e"},
             "commands": {}
             }
         self.database = self.default_database

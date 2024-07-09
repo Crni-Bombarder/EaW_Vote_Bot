@@ -151,27 +151,54 @@ class DiscordBot:
             print(thread_id)
             print(content)
             thread = await guild.fetch_channel(thread_id)
-            await self.get_all_votes(thread, voters)
+            results = await self.get_all_votes(thread, voters)
+
+            print(results)
 
     async def get_all_voters(self, guild):
         voters = set()
         roles = await guild.fetch_roles()
         for role in roles:
             if role.name in self.settings["senior_vote_voter_roles"]:
-                voters.update(set([(member.name, member.id) for member in role.members]))
+                voters.update(set([member.id for member in role.members]))
 
         for role in roles:
             if role.name in self.settings["senior_vote_blacklisted_voter_roles"]:
-                voters.difference_update(set([(member.name, member.id) for member in role.members]))
+                voters.difference_update(set([member.id for member in role.members]))
 
         return voters
 
-    async def get_all_votes(self, thread, voters_set):
-        root_message = await thread.fetch_message(thread.id)
-        for reaction in root_message.reactions:
-            print(reaction.emoji)
-            print(reaction.count)
-        return []
+    # Get the reaction from a message, and translate them into votes
+    # Return:
+    # * a list with the of votes [yes, abstaining, against, void]
+    # * a dictionary with each voter id and their votes
+    # * and finally a set of voter that didn't vote
+    async def get_all_votes(self, message, voters_set):
+        list_vote = [0, 0, 0, 0]
+        dict_index = {self.settings["senior_vote_reactions"]["yes"]: 0,
+                      self.settings["senior_vote_reactions"]["abstaining"]: 1,
+                      self.settings["senior_vote_reactions"]["against"]: 2}
+        already_voted = set()
+        not_voted = voters_set.copy()
+        voter_value = {}
+
+        for reaction in message.reactions:
+            if reaction.emoji not in dict_index:
+                continue
+            vote_value = dict_index[reaction.emoji]
+            async for user in reaction.users():
+                if user.id in voters_set:
+                    if user.id in already_voted:
+                        list_vote[voter_value[user.id]] -= 1
+                        list_vote[3] += 1
+                        voter_value[user.id] = 4
+                    else:
+                        voter_value[user.id] = vote_value
+                        list_vote[vote_value] += 1
+                        not_voted.remove(user.id)
+                        already_voted.add(user.id)
+
+        return list_vote, voter_value, not_voted
 
     async def send_manual(self, user):
         await user.send(DiscordBot.STRING_MANUAL)
