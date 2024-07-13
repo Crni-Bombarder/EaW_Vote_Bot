@@ -446,11 +446,24 @@ class SeniorVoteCommand(BotCommand):
         super().__init__("seniorvote",
                          Scope.PUBLIC,
                          "Start, stop, list, manage the senior votes currently running",
-                         "**manage-vote** status|configuration\n\
+                         "**seniorvote** status|configuration\n\
 Manage the votes. A vote is running using a thread.\n\
-* **add** *command* *role*\nAllow users with *role* to call *command*\n\
+* **status** [thread_id]\nDisplay the status of the vote the command is called in. Else try to find the vote corresponding to the thread provided.\
+Else will display all the informations of every running vote\n\
 * **remove** *command* *role*\nNo longer allow users with *role* to call *command*\n\
 * **list** *[command]*\nShow the roles that can call *command* if specified, else the permissions of all the commands")
 
-        async def exec(self, bot, message, argv):
-            pass
+    async def exec(self, bot, message, argv):
+        if len(argv) < 2:
+            await BotCommand.list_command["help"].exec(bot, message, ["help" ,"seniorvote"])
+            return
+        
+        channel = message.channel
+        in_voting_thread = str(channel.id) in bot.settings["senior_vote_list"]
+        
+        if argv[1] == "status":
+            if in_voting_thread:
+                embed = discord.Embed(title=f"{channel.name}")
+                embed.add_field(name="Content link", value=f"https://discord.com/channels/{channel.guild.id}/{channel.id}/{channel.id}")
+                await message.channel.send("", embed=embed)
+                return

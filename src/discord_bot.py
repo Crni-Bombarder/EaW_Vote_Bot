@@ -64,7 +64,12 @@ class DiscordBot:
             self.vote_list_sem[1] = Future()
             self.vote_list_sem[0] = True
             val_time = int(time.time())
-            self.settings["senior_vote_list"][thread.id] = {"time_started": val_time, "last_time_checked": val_time, "amendments": []}
+            self.settings["senior_vote_list"][thread.id] = {
+                "content": [],
+                "time_started": val_time,
+                "last_time_checked": val_time,
+                "amendments": []
+            }
             self.settings.save_to_file()
 
             self.vote_list_sem[1].set_result(True)
@@ -81,10 +86,13 @@ class DiscordBot:
 
         @self.client.event
         async def on_message(message):
+            channel = message.channel
+            if isinstance(channel, discord.Thread):
+                channel = channel.parent
             if not self.ready or\
                 message.author == self.client.user or\
-                (message.author.name not in self.settings["admin"] and isinstance(message.channel, discord.DMChannel)) or\
-                (not isinstance(message.channel, discord.DMChannel) and message.channel.name not in self.settings["watched_channels"]):
+                (message.author.name not in self.settings["admin"] and isinstance(channel, discord.DMChannel)) or\
+                (not isinstance(channel, discord.DMChannel) and channel.name not in self.settings["watched_channels"] and channel.name not in self.settings["senior_vote_forums"]):
                 return
 
             if message.content.startswith(self.bot_command):
@@ -144,7 +152,7 @@ class DiscordBot:
                     case _:
                         await self.send_manual(message.author)
 
-    @tasks.loop(seconds=5)
+    @tasks.loop(minutes=5)
     async def vote_parsing(self):
         if self.client.is_closed():
             return
