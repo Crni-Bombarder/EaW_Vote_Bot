@@ -1,4 +1,5 @@
 import discord
+import re
 from enum import Enum
 
 class Scope(Enum):
@@ -55,12 +56,12 @@ class HelpCommand(BotCommand):
         if len(argv) > 1 and argv[1] in BotCommand.list_command:
             cmd = BotCommand.list_command[argv[1]]
             embed = discord.Embed(title=cmd.name, description=cmd.long_desc)
+            await message.channel.send('', embed=embed)
         else:
             embed = discord.Embed(title="Available command list")
             for cmd in BotCommand.list_command.values():
                 embed.add_field(name=cmd.name, value=cmd.short_desc, inline=False)
-
-        await send_private_message(message, '', embed=embed)
+            await send_private_message(message, '', embed=embed)
 
 class ManageAdminCommand(BotCommand):
     def __init__(self):
@@ -443,27 +444,85 @@ Manage what role unable the voting right.\n\
 
 class SeniorVoteCommand(BotCommand):
     def __init__(self):
+        self.discord_thread_link_parser = re.compile(r"https://discord.com/channels/(\d+)/(\d+)")
         super().__init__("seniorvote",
                          Scope.PUBLIC,
                          "Start, stop, list, manage the senior votes currently running",
                          "**seniorvote** status|configuration\n\
-Manage the votes. A vote is running using a thread.\n\
+Manage the votes. A vote is running using a thread. THis command need to be run on a server.\n\
 * **status** [thread_id]\nDisplay the status of the vote the command is called in. Else try to find the vote corresponding to the thread provided.\
 Else will display all the informations of every running vote\n\
 * **remove** *command* *role*\nNo longer allow users with *role* to call *command*\n\
 * **list** *[command]*\nShow the roles that can call *command* if specified, else the permissions of all the commands")
 
+    async def generate_vote_embed(self, bot, channel):
+        embed = discord.Embed(title=f"{channel.name}")
+        embed.add_field(name="Content link", value=f"https://discord.com/channels/{channel.guild.id}/{channel.id}/{channel.id}")
+        return embed
+
     async def exec(self, bot, message, argv):
-        if len(argv) < 2:
+        if len(argv) < 2 or isinstance(message.channel, discord.DMChannel):
             await BotCommand.list_command["help"].exec(bot, message, ["help" ,"seniorvote"])
             return
-        
+
         channel = message.channel
         in_voting_thread = str(channel.id) in bot.settings["senior_vote_list"]
-        
+
         if argv[1] == "status":
-            if in_voting_thread:
-                embed = discord.Embed(title=f"{channel.name}")
-                embed.add_field(name="Content link", value=f"https://discord.com/channels/{channel.guild.id}/{channel.id}/{channel.id}")
-                await message.channel.send("", embed=embed)
+            # If the command is launch in a voting thread, without argument
+            print(in_voting_thread)
+            print(bot.settings["senior_vote_list"])
+            print(channel.id)
+            if in_voting_thread and len(argv) == 2:
+                embed = await self.generate_vote_embed(bot, channel)
+                await channel.send("", embed=embed)
                 return
+
+            # If the command is launched with an argument
+            if len(argv) > 2:
+                print(argv[2])
+                match = self.discord_thread_link_parser.match(argv[2])
+                thread_id = None
+                if match:
+                    thread_id = match.group(2)
+                else:
+                    try:
+                        thread_id = int(argv[2])
+                    except:
+                        pass
+                if not thread_id:
+                    embed = discord.Embed(title=f'Wrong argument thread_id. Should be either a link to a thread or a thread id')
+                    await channel.send('', embed=embed)
+                    await BotCommand.list_command["help"].exec(bot, message, ["help" ,"seniorvote"])
+                    return
+
+                thread = message.guild.get_channel_or_thread(thread_id)
+                if not thread:
+                    try:
+                        thread = await message.guild.fetch_channel(thread_id)
+                    except discord.NotFound:
+                        embed = discord.Embed(title=f'Could not find the thread with the thread id {thread_id}')
+                        await channel.send('', embed=embed)
+                        return
+
+                print(thread)
+                embed = await self.generate_vote_embed(bot, thread)
+                await channel.send("", embed=embed)
+                return
+
+            await bot.get_sem_vote_list()
+            for vote_id_str in bot.settings["senior_vote_list"]:
+                vote_id = int(vote_id_str)
+                thread = message.guild.get_channel_or_thread(vote_id)
+                if not thread:
+                    try:
+                        thread = await message.guild.fetch_channel(vote_id)
+                    except discord.NotFound:
+                        embed = discord.Embed(title=f'Could not find the thread with the thread id {vote_id}')
+                        await channel.send(message, '', embed=embed)
+                        return
+                embed = await self.generate_vote_embed(bot, thread)
+                await channel.send("", embed=embed)
+
+            bot.free_sem_vote_list()
+

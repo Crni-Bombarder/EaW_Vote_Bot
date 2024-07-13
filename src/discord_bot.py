@@ -64,7 +64,7 @@ class DiscordBot:
             self.vote_list_sem[1] = Future()
             self.vote_list_sem[0] = True
             val_time = int(time.time())
-            self.settings["senior_vote_list"][thread.id] = {
+            self.settings["senior_vote_list"][str(thread.id)] = {
                 "content": [],
                 "time_started": val_time,
                 "last_time_checked": val_time,
@@ -152,6 +152,16 @@ class DiscordBot:
                     case _:
                         await self.send_manual(message.author)
 
+    async def get_sem_vote_list(self):
+        if self.vote_list_sem[0]:
+            await self.vote_list_sem[1]
+        self.vote_list_sem[1] = Future()
+        self.vote_list_sem[0] = True
+
+    def free_sem_vote_list(self):
+        self.vote_list_sem[1].set_result(True)
+        self.vote_list_sem[0] = False
+
     @tasks.loop(minutes=5)
     async def vote_parsing(self):
         if self.client.is_closed():
@@ -164,23 +174,15 @@ class DiscordBot:
         # Get the number of voters
         voters = await self.get_all_voters(guild)
 
-        # For each running vote, check the number of votes
-        if self.vote_list_sem[0]:
-            await self.vote_list_sem[1]
-        self.vote_list_sem[1] = Future()
-        self.vote_list_sem[0] = True
+        await self.get_sem_vote_list()
 
+        # For each running vote, check the number of votes
         for thread_id, content in self.settings["senior_vote_list"].items():
-            print(thread_id)
-            print(content)
             thread = await guild.fetch_channel(thread_id)
             root_message = await thread.fetch_message(thread_id)
             results = await self.get_all_votes(root_message, voters)
 
-            print(results)
-
-        self.vote_list_sem[1].set_result(True)
-        self.vote_list_sem[0] = False
+        self.free_sem_vote_list()
 
     async def get_all_voters(self, guild):
         voters = set()
