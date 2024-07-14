@@ -450,9 +450,12 @@ class SeniorVoteCommand(BotCommand):
                          "Start, stop, list, manage the senior votes currently running",
                          "**seniorvote** status|configuration\n\
 Manage the votes. A vote is running using a thread. THis command need to be run on a server.\n\
-* **status** [thread_id]\nDisplay the status of the vote the command is called in. Else try to find the vote corresponding to the thread provided.\
+* **status** [thread_id]\nDisplay the status of the vote the command is called in. Else try to find the vote corresponding to the thread provided (Through a link or thread ID directly).\
 Else will display all the informations of every running vote\n\
-* **remove** *command* *role*\nNo longer allow users with *role* to call *command*\n\
+* **content**:\n\
+ * **add**\nAdd the message replied to as content.\n\
+ * **remove**\Remove the message replied to as content.\n\
+ * **[list]**\nList all the message that are considered content for the vote. Default if no argument for the content command\n\
 * **list** *[command]*\nShow the roles that can call *command* if specified, else the permissions of all the commands")
 
     async def generate_vote_embed(self, bot, channel):
@@ -470,9 +473,6 @@ Else will display all the informations of every running vote\n\
 
         if argv[1] == "status":
             # If the command is launch in a voting thread, without argument
-            print(in_voting_thread)
-            print(bot.settings["senior_vote_list"])
-            print(channel.id)
             if in_voting_thread and len(argv) == 2:
                 embed = await self.generate_vote_embed(bot, channel)
                 await channel.send("", embed=embed)
@@ -480,7 +480,6 @@ Else will display all the informations of every running vote\n\
 
             # If the command is launched with an argument
             if len(argv) > 2:
-                print(argv[2])
                 match = self.discord_thread_link_parser.match(argv[2])
                 thread_id = None
                 if match:
@@ -505,24 +504,67 @@ Else will display all the informations of every running vote\n\
                         await channel.send('', embed=embed)
                         return
 
-                print(thread)
                 embed = await self.generate_vote_embed(bot, thread)
                 await channel.send("", embed=embed)
                 return
 
             await bot.get_sem_vote_list()
-            for vote_id_str in bot.settings["senior_vote_list"]:
-                vote_id = int(vote_id_str)
-                thread = message.guild.get_channel_or_thread(vote_id)
-                if not thread:
-                    try:
-                        thread = await message.guild.fetch_channel(vote_id)
-                    except discord.NotFound:
-                        embed = discord.Embed(title=f'Could not find the thread with the thread id {vote_id}')
-                        await channel.send(message, '', embed=embed)
-                        return
-                embed = await self.generate_vote_embed(bot, thread)
-                await channel.send("", embed=embed)
+            try:
+                for vote_id_str in bot.settings["senior_vote_list"]:
+                    vote_id = int(vote_id_str)
+                    thread = message.guild.get_channel_or_thread(vote_id)
+                    if not thread:
+                        try:
+                            thread = await message.guild.fetch_channel(vote_id)
+                        except discord.NotFound:
+                            embed = discord.Embed(title=f'Could not find the thread with the thread id {vote_id}')
+                            await channel.send(message, '', embed=embed)
+                            bot.free_sem_vote_list()
+                            return
+                    embed = await self.generate_vote_embed(bot, thread)
+                    await channel.send("", embed=embed)
+            finally:
+                bot.free_sem_vote_list()
 
             bot.free_sem_vote_list()
 
+        if argv[1] == "content":
+            if not in_voting_thread:
+                embed = discord.Embed(title=f'This command need to be executed inside a currently running vote')
+                await channel.send(message, '', embed=embed)
+                return
+
+            if len(argv) == 2 or (len(argv) > 2 and argv[2] == "list"):
+                embed = discord.Embed(title=f"{channel.name}")
+                embed.add_field(name="Content 0", value=f"https://discord.com/channels/{channel.guild.id}/{channel.id}/{channel.id}")
+                for i, elmt in enumerate(bot.settings["senior_vote_list"][str(channel.id)]["content"]):
+                    embed.add_field(name=f"Content {i}", value=f"https://discord.com/channels/{channel.guild.id}/{channel.id}/{elmt}")
+                channel.send('', embed=embed)
+                return
+
+            if (not argv[3] == "add") and (not argv[2] == "remove"):
+                embed = discord.Embed(title=f'Invalid action for this command')
+                await channel.send(message, '', embed=embed)
+                return
+
+            if not message.reference or message.reference.channel_id != channel.id:
+                embed = discord.Embed(title="This command need to be executed inside a reply to another message in the thread")
+                channel.send('', embed=embed)
+                return
+
+            print(message.reference)
+            if argv[2] == "add":
+                pass
+
+            if argv[2] == "remove":
+                pass
+
+
+        if argv[1] == "amendment":
+            pass
+
+        if argv[1] == "start":
+            pass
+
+        if argv[1] == "close":
+            pass
