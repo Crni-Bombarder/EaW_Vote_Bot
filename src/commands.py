@@ -1,5 +1,6 @@
 import discord
 import re
+import time
 from enum import Enum
 
 class Scope(Enum):
@@ -445,6 +446,7 @@ Manage what role unable the voting right.\n\
 class SeniorVoteCommand(BotCommand):
     def __init__(self):
         self.discord_thread_link_parser = re.compile(r"https://discord.com/channels/(\d+)/(\d+)")
+        self.list_status = ["Running", "Accepted", "Refused", "Cancelled"]
         super().__init__("seniorvote",
                          Scope.PUBLIC,
                          "Start, stop, list, manage the senior votes currently running",
@@ -456,11 +458,26 @@ Else will display all the informations of every running vote\n\
  * **add**: Add the message replied to as content.\n\
  * **remove**: Remove the message replied to as content.\n\
  * **[list]**: List all the message that are considered content for the vote. Default if no argument for the content command\n\
+* **amendment**:\n\
+ * **add**: Add the message replied to as an amendment.\n\
+ * **close** *accepted*|*refused*|*cancelled*: Close the amendment voting.\n\
+ * **[list]**: List all the amendment and their status for the current vote.\n\
 * **list** *[command]*\nShow the roles that can call *command* if specified, else the permissions of all the commands")
 
     async def generate_vote_embed(self, bot, channel):
         embed = discord.Embed(title=f"{channel.name}")
         embed.add_field(name="Content link", value=f"https://discord.com/channels/{channel.guild.id}/{channel.id}/{channel.id}")
+        return embed
+
+    def generate_amendment_embed(self, bot, channel, amendment_id):
+        amendment = bot.settings["senior_vote_list"][str(channel.id)]["amendments"][amendment_id]
+        embed = discord.Embed(title=f"Amendment {amendment["id"]}  https://discord.com/channels/{channel.guild.id}/{channel.id}/{amendment_id}")
+        embed.add_field(name="Status", value=self.list_status[amendment["status"]])
+        if not amendment["status"]:
+            embed.add_field(name="Started", value=f'<t:{amendment["started"]}:R>')
+        else:
+            embed.add_field(name="Started", value=f'<t:{amendment["started"]}:f>')
+            embed.add_field(name="Finished", value=f'<t:{amendment["closed"]}:f>')
         return embed
 
     async def exec(self, bot, message, argv):
@@ -531,7 +548,7 @@ Else will display all the informations of every running vote\n\
         if argv[1] == "content":
             if not in_voting_thread:
                 embed = discord.Embed(title=f'This command need to be executed inside a currently running vote')
-                await channel.send(message, '', embed=embed)
+                await channel.send('', embed=embed)
                 return
 
             if len(argv) == 2 or (len(argv) > 2 and argv[2] == "list"):
@@ -577,10 +594,76 @@ Else will display all the informations of every running vote\n\
                     await channel.send('', embed=embed)
                 await BotCommand.list_command["seniorvote"].exec(bot, message, ["seniorvote" ,"content"])
                 return
+            return
 
 
         if argv[1] == "amendment":
-            pass
+            if not in_voting_thread:
+                embed = discord.Embed(title=f'This command need to be executed inside a currently running vote')
+                await channel.send('', embed=embed)
+                return
+
+            if len(argv) == 2 or (len(argv) > 2 and argv[2] == "list"):
+                amendments = bot.settings["senior_vote_list"][str(channel.id)]["amendments"]
+                embed = discord.Embed(title=f'"{channel.name}" Amendmends')
+                if len(amendments) == 0:
+                    embed.add_field(name=f'This vote has no amendment', value='')
+                else:
+                    for amendment_id, amendment in amendments.items():
+                        embed.add_field(name=f'Amendment {amendment["id"]}',
+                                        value=f'Link: https://discord.com/channels/{channel.guild.id}/{channel.id}/{amendment_id}, Status: {self.list_status[amendment["status"]]}')
+                await channel.send('', embed=embed)
+                return
+
+            if (argv[2] != "add") and (argv[2] != "close"):
+                    embed = discord.Embed(title=f'Invalid action for this command')
+                    await channel.send('', embed=embed)
+                    return
+
+            if not message.reference or message.reference.channel_id != channel.id:
+                embed = discord.Embed(title="This command need to be executed inside a reply to another message in the thread")
+                await channel.send('', embed=embed)
+                return
+
+            try:
+                message_replied = await channel.fetch_message(message.reference.message_id)
+            except discord.NotFound:
+                if str(message.reference.message_id) in bot.settings["senior_vote_list"][str(channel.id)]["amendments"]:
+                    amendment = bot.settings["senior_vote_list"][str(channel.id)]["amendments"][str(message.reference.message_id)]
+                    amendment["status"] = 3 # Cancel the amendment
+                    amendment["closed"] = int(time.time())
+                    bot.settings.save_to_file()
+                    embed = discord.Embed(title="Could not find the amendment message, but it is still exists in the data base", description="The amendment has been cancelled")
+                    await channel.send('', embed=embed)
+                    return
+                embed = discord.Embed(title="Could not find the amendment message", description="The message may have been deleted")
+                await channel.send('', embed=embed)
+                return
+
+
+            if argv[2] == "add":
+                if str(message_replied.id) in bot.settings["senior_vote_list"][str(channel.id)]["amendments"]:
+                    embed = discord.Embed(title=f"Message https://discord.com/channels/{channel.guild.id}/{channel.id}/{message_replied.id} is already an amendments")
+                    await channel.send('', embed=embed)
+                    return
+
+                await bot.get_sem_vote_list()
+                val_time = int(time.time())
+                bot.settings["senior_vote_list"][str(channel.id)]["amendments"][str(message_replied.id)] = {
+                    "id": len(bot.settings["senior_vote_list"][str(channel.id)]["amendments"]),
+                    "status": 0, # 0 running, 1 accepted, 2 refused, 3 cancelled
+                    "started": val_time,
+                    "closed": 0,
+                    "last_checked": val_time,
+                    "results": [0, 0, 0, 0]
+                }
+                bot.settings.save_to_file()
+                bot.free_sem_vote_list()
+
+                embed = self.generate_amendment_embed(bot, channel, str(message_replied.id))
+                await channel.send('', embed=embed)
+                return
+            return
 
         if argv[1] == "start":
             pass
