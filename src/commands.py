@@ -453,9 +453,9 @@ Manage the votes. A vote is running using a thread. THis command need to be run 
 * **status** [thread_id]\nDisplay the status of the vote the command is called in. Else try to find the vote corresponding to the thread provided (Through a link or thread ID directly).\
 Else will display all the informations of every running vote\n\
 * **content**:\n\
- * **add**\nAdd the message replied to as content.\n\
- * **remove**\Remove the message replied to as content.\n\
- * **[list]**\nList all the message that are considered content for the vote. Default if no argument for the content command\n\
+ * **add**: Add the message replied to as content.\n\
+ * **remove**: Remove the message replied to as content.\n\
+ * **[list]**: List all the message that are considered content for the vote. Default if no argument for the content command\n\
 * **list** *[command]*\nShow the roles that can call *command* if specified, else the permissions of all the commands")
 
     async def generate_vote_embed(self, bot, channel):
@@ -536,28 +536,47 @@ Else will display all the informations of every running vote\n\
 
             if len(argv) == 2 or (len(argv) > 2 and argv[2] == "list"):
                 embed = discord.Embed(title=f"{channel.name}")
-                embed.add_field(name="Content 0", value=f"https://discord.com/channels/{channel.guild.id}/{channel.id}/{channel.id}")
+                embed.add_field(name="Root message", value=f"https://discord.com/channels/{channel.guild.id}/{channel.id}/{channel.id}")
                 for i, elmt in enumerate(bot.settings["senior_vote_list"][str(channel.id)]["content"]):
                     embed.add_field(name=f"Content {i}", value=f"https://discord.com/channels/{channel.guild.id}/{channel.id}/{elmt}")
-                channel.send('', embed=embed)
+                await channel.send('', embed=embed)
                 return
 
-            if (not argv[3] == "add") and (not argv[2] == "remove"):
+            if (argv[2] != "add") and (argv[2] != "remove"):
                 embed = discord.Embed(title=f'Invalid action for this command')
-                await channel.send(message, '', embed=embed)
+                await channel.send('', embed=embed)
                 return
 
             if not message.reference or message.reference.channel_id != channel.id:
                 embed = discord.Embed(title="This command need to be executed inside a reply to another message in the thread")
-                channel.send('', embed=embed)
+                await channel.send('', embed=embed)
                 return
 
-            print(message.reference)
+            message_replied = await channel.fetch_message(message.reference.message_id)
+
             if argv[2] == "add":
-                pass
+                if str(message_replied.id) not in bot.settings["senior_vote_list"][str(channel.id)]["content"]:
+                    bot.settings["senior_vote_list"][str(channel.id)]["content"].append(str(message_replied.id))
+                    bot.settings.save_to_file()
+                    embed = discord.Embed(title=f"Add https://discord.com/channels/{channel.guild.id}/{channel.id}/{message_replied.id} to the vote content")
+                    await channel.send('', embed=embed)
+                else:
+                    embed = discord.Embed(title=f"Message https://discord.com/channels/{channel.guild.id}/{channel.id}/{message_replied.id} is already a content in the vote")
+                    await channel.send('', embed=embed)
+                await BotCommand.list_command["seniorvote"].exec(bot, message, ["seniorvote" ,"content"])
+                return
 
             if argv[2] == "remove":
-                pass
+                if str(message_replied.id) in bot.settings["senior_vote_list"][str(channel.id)]["content"]:
+                    bot.settings["senior_vote_list"][str(channel.id)]["content"].remove(str(message_replied.id))
+                    bot.settings.save_to_file()
+                    embed = discord.Embed(title=f"Remove https://discord.com/channels/{channel.guild.id}/{channel.id}/{message_replied.id} from the vote content")
+                    await channel.send('', embed=embed)
+                else:
+                    embed = discord.Embed(title=f"Message https://discord.com/channels/{channel.guild.id}/{channel.id}/{message_replied.id} is not a contnet of the vote")
+                    await channel.send('', embed=embed)
+                await BotCommand.list_command["seniorvote"].exec(bot, message, ["seniorvote" ,"content"])
+                return
 
 
         if argv[1] == "amendment":
