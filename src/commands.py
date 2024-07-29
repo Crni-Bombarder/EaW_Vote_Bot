@@ -445,7 +445,8 @@ Manage what role unable the voting right.\n\
 
 class SeniorVoteCommand(BotCommand):
     def __init__(self):
-        self.discord_thread_link_parser = re.compile(r"https://discord.com/channels/(\d+)/(\d+)")
+        self.discord_thread_link_parser  = re.compile(r"https://discord.com/channels/(\d+)/(\d+)")
+        self.discord_message_link_parser = re.compile(r"https://discord.com/channels/(\d+)/(\d+)/(\d+)")
         self.list_status = ["Running", "Accepted", "Refused", "Cancelled"]
         super().__init__("seniorvote",
                          Scope.PUBLIC,
@@ -460,7 +461,7 @@ Else will display all the informations of every running vote\n\
  * **[list]**: List all the message that are considered content for the vote. Default if no argument for the content command\n\
 * **amendment**:\n\
  * **add**: Add the message replied to as an amendment.\n\
- * **close** *accepted*|*refused*|*cancelled*: Close the amendment voting.\n\
+ * **close** *accepted*|*refused*|*cancelled* [*message_link*]: Close the amendment voting. Target either the message that is replied to or the message linked with message_link\n\
  * **[list]**: List all the amendment and their status for the current vote.\n\
 * **list** *[command]*\nShow the roles that can call *command* if specified, else the permissions of all the commands")
 
@@ -662,6 +663,21 @@ Else will display all the informations of every running vote\n\
 
                 embed = self.generate_amendment_embed(bot, channel, str(message_replied.id))
                 await channel.send('', embed=embed)
+                return
+
+            if argv[2] == "close":
+                if len(argv) < 4:
+                    embed = discord.Embed(title=f'Invalid action for this command')
+                    await channel.send('', embed=embed)
+                    return
+
+                if len(argv) > 4:
+                    match = self.discord_thread_link_parser.match(argv[2])
+                    if not match:
+                        await channel.send(f"Wrong argument *message_link*")
+                    return
+                if argv[3] == "cancelled":
+
                 return
             return
 
