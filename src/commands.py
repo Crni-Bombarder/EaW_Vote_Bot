@@ -621,36 +621,62 @@ Else will display all the informations of every running vote\n\
                     await channel.send('', embed=embed)
                     return
 
-            if not message.reference or message.reference.channel_id != channel.id:
+            # Catch the target amendment
+            target_message_id = None
+            target_message = None
+            match = self.discord_message_link_parser.match(argv[-1])
+            if match:
+                target_message_id = int(match.group(3))
+                target_channel_id = match.group(2)
+            elif message.reference and message.reference.channel_id == channel.id:
+                target_message_id = message.reference.message_id
+                target_channel_id = message.reference.channel_id
+
+            # If no amendment is found
+            if not target_message_id:
                 embed = discord.Embed(title="This command need to be executed inside a reply to another message in the thread")
                 await channel.send('', embed=embed)
                 return
 
+            # Fetch the channel
+            vote_channel = channel
+            if target_channel_id != channel.id:
+                vote_channel = channel.guild.get_channel_or_thread(target_channel_id)
+
+            if not vote_channel:
+                try:
+                    vote_channel = await channel.guild.fetch_channel(target_channel_id)
+                except discord.NotFound:
+
+
+            # Fetch the message targetted
             try:
-                message_replied = await channel.fetch_message(message.reference.message_id)
+                target_message = await channel.fetch_message(message.reference.message_id)
             except discord.NotFound:
-                if str(message.reference.message_id) in bot.settings["senior_vote_list"][str(channel.id)]["amendments"]:
-                    amendment = bot.settings["senior_vote_list"][str(channel.id)]["amendments"][str(message.reference.message_id)]
+                target_message = None
+
+            # If the message is not found
+            if not target_message:
+                if str(target_message_id) in bot.settings["senior_vote_list"][str(channel.id)]["amendments"]:
+                    amendment = bot.settings["senior_vote_list"][str(channel.id)]["amendments"][str(target_message_id)]
                     amendment["status"] = 3 # Cancel the amendment
                     amendment["closed"] = int(time.time())
                     bot.settings.save_to_file()
                     embed = discord.Embed(title="Could not find the amendment message, but it is still exists in the data base", description="The amendment has been cancelled")
-                    await channel.send('', embed=embed)
-                    return
-                embed = discord.Embed(title="Could not find the amendment message", description="The message may have been deleted")
+                else:
+                    embed = discord.Embed(title="Could not find the amendment message", description="The message may have been deleted")
                 await channel.send('', embed=embed)
                 return
 
-
             if argv[2] == "add":
-                if str(message_replied.id) in bot.settings["senior_vote_list"][str(channel.id)]["amendments"]:
-                    embed = discord.Embed(title=f"Message https://discord.com/channels/{channel.guild.id}/{channel.id}/{message_replied.id} is already an amendments")
+                if str(target_message.id) in bot.settings["senior_vote_list"][str(target_message.channel.id)]["amendments"]:
+                    embed = discord.Embed(title=f"Message https://discord.com/channels/{channel.guild.id}/{channel.id}/{target_message.id} is already an amendments")
                     await channel.send('', embed=embed)
                     return
 
                 await bot.get_sem_vote_list()
                 val_time = int(time.time())
-                bot.settings["senior_vote_list"][str(channel.id)]["amendments"][str(message_replied.id)] = {
+                bot.settings["senior_vote_list"][str(channel.id)]["amendments"][str(target_message.id)] = {
                     "id": len(bot.settings["senior_vote_list"][str(channel.id)]["amendments"]),
                     "status": 0, # 0 running, 1 accepted, 2 refused, 3 cancelled
                     "started": val_time,
@@ -661,21 +687,12 @@ Else will display all the informations of every running vote\n\
                 bot.settings.save_to_file()
                 bot.free_sem_vote_list()
 
-                embed = self.generate_amendment_embed(bot, channel, str(message_replied.id))
+                embed = self.generate_amendment_embed(bot, channel, str(target_message.id))
                 await channel.send('', embed=embed)
                 return
 
             if argv[2] == "close":
-                if len(argv) < 4:
-                    embed = discord.Embed(title=f'Invalid action for this command')
-                    await channel.send('', embed=embed)
-                    return
 
-                if len(argv) > 4:
-                    match = self.discord_thread_link_parser.match(argv[2])
-                    if not match:
-                        await channel.send(f"Wrong argument *message_link*")
-                    return
                 if argv[3] == "cancelled":
 
                 return
