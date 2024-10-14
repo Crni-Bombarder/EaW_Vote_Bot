@@ -461,7 +461,7 @@ Else will display all the informations of every running vote\n\
  * **[list]**: List all the message that are considered content for the vote. Default if no argument for the content command\n\
 * **amendment**:\n\
  * **add** [*message_link*]: Add the message replied to or linked as an amendment.\n\
- * **close** *accepted*|*refused*|*cancelled* [*message_link*]: Close the amendment voting. Target either the message that is replied to or the message linked with message_link\n\
+ * **close** [*cancelled*] [*message_link*]: Close the amendment voting. Canel it if _cancelled_ is added to the command. Target either the message that is replied to or the message linked with message_link\n\
  * **[list]**: List all the amendment and their status for the current vote.\n\
 * **list** *[command]*\nShow the roles that can call *command* if specified, else the permissions of all the commands")
 
@@ -695,9 +695,14 @@ Else will display all the informations of every running vote\n\
                 return
 
             if argv[2] == "close":
+                # Check the vote is not already closed
+                if amendments[str(target_message.id)]["status"]:
+                    embed = discord.Embed(title=f"Amendment https://discord.com/channels/{channel.guild.id}/{vote_channel.id}/{target_message.id} is already closed")
+                    await channel.send('', embed=embed)
+                    return
 
-                if argv[3] == "cancelled":
-
+                if len(argv) > 3 and argv[3] == "cancelled":
+                    amendments[str(target_message.id)]["status"] = 3
                 return
             return
 
