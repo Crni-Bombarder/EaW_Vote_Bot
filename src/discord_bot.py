@@ -3,6 +3,7 @@ import string
 import random
 import re
 import shlex
+import asyncio
 
 from src.settings import Settings
 from src.commands import BotCommand
@@ -48,7 +49,7 @@ class DiscordBot:
                 (message.author.name not in self.settings["admin"] and isinstance(message.channel, discord.DMChannel)) or\
                 (not isinstance(message.channel, discord.DMChannel) and message.channel.name not in self.settings["watched_channels"] ):
                 return
-            
+
             if message.content.startswith(self.bot_command):
                 tokens = shlex.split(message.content.strip())
 
@@ -58,10 +59,8 @@ class DiscordBot:
                 if self.check_authorization(message, tokens[1]):
                     await BotCommand.exec_command(self, message, tokens[1:])
                 else:
-                    try:
-                        await message.author.send(f'Unknown command: {tokens[1]}')
-                    except:
-                        await message.channel.send(f'Unknown command: {tokens[1]}')
+                    embed = discord.Embed(title=f'Unknown command: {tokens[1]}')
+                    await message.channel.send("", embed=embed)
 
             return
 
@@ -137,14 +136,14 @@ class DiscordBot:
     def check_authorization(self, message, command):
         if command not in self.settings["commands"]:
             return False
-        
+
         roles = []
         if not isinstance(message.channel, discord.DMChannel):
             roles = [x.name for x in message.author.roles]
         return (message.author.name in self.settings["admin"]) or (any(x in roles for x in self.authorization["commands"][command]))
 
     def run(self):
-        self.client.run(self.discord_token)
+        asyncio.run(self.client.start(self.discord_token))
 
 def create_cmd(name, desc, authorization, func):
     pass
