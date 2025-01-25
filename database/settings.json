@@ -1,1 +1,28 @@
-{"admin": ["crnibombarder"], "commands": {"help": ["@everyone"], "manage-admin": [], "manage-permission": [], "manage-watchedchannels": [], "manage-vote": []}, "watched_channels": ["bot-here"]}
+{
+    "admin": [
+        "crnibombarder"
+    ],
+    "commands": {
+        "help": [
+            "@everyone"
+        ],
+        "manage-admin": [],
+        "manage-permission": [],
+        "manage-watchedchannels": [],
+        "manage-seniorvoteforums": [],
+        "manage-seniorvotereactions": [],
+        "seniorvote": []
+    },
+    "watched_channels": [],
+    "senior_vote_forums": [ 
+        "test-forum"
+    ],
+    "senior_vote_running": {},
+    "senior_vote_reactions": {
+        "yes": "\ud83d\udc4d",
+        "abstaining": "\ud83d\ude36",
+        "against": "\ud83d\udc4e"
+    },
+    "senior_vote_list": {
+    }
+}

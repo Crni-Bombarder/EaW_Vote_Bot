@@ -1,9 +1,12 @@
 import discord
+from discord.ext import tasks
 import string
 import random
 import re
 import shlex
+import time
 import asyncio
+from asyncio import Future
 
 from src.settings import Settings
 from src.commands import BotCommand
@@ -30,24 +33,67 @@ class DiscordBot:
         self.intents = discord.Intents.default()
         self.intents.message_content = True
         self.intents.members = True
+        self.intents.guilds = True
 
         self.client = discord.Client(intents=self.intents)
 
         self.ready = False
+        self.vote_list_sem = None
 
         @self.client.event
         async def on_ready():
             print(f'We have logged in as {self.client.user}')
+            self.settings.load_from_file() # Reloading the setting in case of disconnection
             if not self.bot_command:
                 self.bot_command = f"<@{self.client.user.id}>"
             self.ready = True
+            if not self.vote_parsing.is_running():
+                self.vote_list_sem = [False, None]
+                self.vote_parsing.start()
+
+        @self.client.event
+        async def on_thread_create(thread):
+            if thread.guild.id != self.settings["watched_guild_id"]:
+                return
+
+            channel = thread.guild.get_channel(thread.parent_id)
+            if channel.name not in self.settings["senior_vote_forums"]:
+                return
+
+            if self.vote_list_sem[0]:
+                await self.vote_list_sem[1]
+            self.vote_list_sem[1] = Future()
+            self.vote_list_sem[0] = True
+            val_time = int(time.time())
+            self.settings["senior_vote_list"][str(thread.id)] = {
+                "content": [],
+                "time_started": val_time,
+                "last_time_checked": val_time,
+                "amendments": []
+            }
+            self.settings.save_to_file()
+
+            self.vote_list_sem[1].set_result(True)
+            self.vote_list_sem[0] = False
+
+            # Add voting reaction
+            msg = await thread.fetch_message(thread.id)
+            await msg.add_reaction(self.settings["senior_vote_reactions"]["yes"])
+            await msg.add_reaction(self.settings["senior_vote_reactions"]["abstaining"])
+            await msg.add_reaction(self.settings["senior_vote_reactions"]["against"])
+
+            embed = discord.Embed(title=thread.name, description="Vote started")
+            await thread.send("", embed=embed)
 
         @self.client.event
         async def on_message(message):
+            channel = message.channel
+            if isinstance(channel, discord.Thread):
+                channel = channel.parent
             if not self.ready or\
                 message.author == self.client.user or\
-                (message.author.name not in self.settings["admin"] and isinstance(message.channel, discord.DMChannel)) or\
-                (not isinstance(message.channel, discord.DMChannel) and message.channel.name not in self.settings["watched_channels"] ):
+                (message.author.name not in self.settings["admin"] and isinstance(channel, discord.DMChannel)) or\
+                (not isinstance(channel, discord.DMChannel) and channel.name not in self.settings["watched_channels"] and channel.name not in self.settings["senior_vote_forums"]):
                 return
 
             if message.content.startswith(self.bot_command):
@@ -105,6 +151,83 @@ class DiscordBot:
                     case _:
                         await self.send_manual(message.author)
 
+    async def get_sem_vote_list(self):
+        if self.vote_list_sem[0]:
+            await self.vote_list_sem[1]
+        self.vote_list_sem[1] = Future()
+        self.vote_list_sem[0] = True
+
+    def free_sem_vote_list(self):
+        self.vote_list_sem[1].set_result(True)
+        self.vote_list_sem[0] = False
+
+    @tasks.loop(minutes=5)
+    async def vote_parsing(self):
+        if self.client.is_closed():
+            return
+
+        # Get the guild
+        guild = self.client.get_guild(self.settings["watched_guild_id"])
+        if not guild: return
+
+        # Get the number of voters
+        voters = await self.get_all_voters(guild)
+
+        await self.get_sem_vote_list()
+
+        # For each running vote, check the number of votes
+        for thread_id, content in self.settings["senior_vote_list"].items():
+            thread = await guild.fetch_channel(thread_id)
+            root_message = await thread.fetch_message(thread_id)
+            results = await self.get_all_votes(root_message, voters)
+
+        self.free_sem_vote_list()
+
+    async def get_all_voters(self, guild):
+        voters = set()
+        roles = await guild.fetch_roles()
+        for role in roles:
+            if role.name in self.settings["senior_vote_voter_roles"]:
+                voters.update(set([member.id for member in role.members]))
+
+        for role in roles:
+            if role.name in self.settings["senior_vote_blacklisted_voter_roles"]:
+                voters.difference_update(set([member.id for member in role.members]))
+
+        return voters
+
+    # Get the reaction from a message, and translate them into votes
+    # Return:
+    # * a list with the of votes [yes, abstaining, against, void]
+    # * a dictionary with each voter id and their votes
+    # * and finally a set of voter that didn't vote
+    async def get_all_votes(self, message, voters_set):
+        list_vote = [0, 0, 0, 0]
+        dict_index = {self.settings["senior_vote_reactions"]["yes"]: 0,
+                      self.settings["senior_vote_reactions"]["abstaining"]: 1,
+                      self.settings["senior_vote_reactions"]["against"]: 2}
+        already_voted = set()
+        not_voted = voters_set.copy()
+        voter_value = {}
+
+        for reaction in message.reactions:
+            if reaction.emoji not in dict_index:
+                continue
+            vote_value = dict_index[reaction.emoji]
+            async for user in reaction.users():
+                if user.id in voters_set:
+                    if user.id in already_voted:
+                        list_vote[voter_value[user.id]] -= 1
+                        list_vote[3] += 1
+                        voter_value[user.id] = 4
+                    else:
+                        voter_value[user.id] = vote_value
+                        list_vote[vote_value] += 1
+                        not_voted.remove(user.id)
+                        already_voted.add(user.id)
+
+        return list_vote, voter_value, not_voted
+
     async def send_manual(self, user):
         await user.send(DiscordBot.STRING_MANUAL)
         if user.name == self.admin_name:
@@ -135,7 +258,11 @@ class DiscordBot:
 
     def check_authorization(self, message, command):
         if command not in self.settings["commands"]:
-            return False
+            if command in BotCommand.list_command:
+                self.settings["commands"][command] = []
+                self.settings.save_to_file()
+            else:
+                return False
 
         roles = []
         if not isinstance(message.channel, discord.DMChannel):
