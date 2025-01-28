@@ -5,7 +5,8 @@ import time
 from src.database import IDDatabase
 from src.discord_bot import DiscordBot
 from src.spreadsheet import SpreadsheetHandler
-from src.commands import BotCommand
+from src.commands import *
+from src.senior_vote import *
 
 def create_arg_parser():
     parser = argparse.ArgumentParser(description="A discord bot used to manage a user unique ID for vote through a google form")
@@ -53,6 +54,18 @@ def get_discord_token_from_file(filepath):
         sys.exit(0)
     return discord_token
 
+def init_commands():
+    HelpCommand()
+    ManageWatchedGuildCommand()
+    ManageAdminCommand()
+    ManagePermissionCommand()
+    ManageWatchedChannels()
+    ManageSeniorVoteForums()
+    ManageSeniorVoteReactions()
+    ManageSeniorVoterRoles()
+    ManageSeniorVoterRolesBlacklist()
+    SeniorVoteCommand()
+
 if __name__ == "__main__":
     # Parsing arguments
     parser = create_arg_parser()
@@ -69,7 +82,7 @@ if __name__ == "__main__":
         print(str(database))
         sys.exit()
 
-    BotCommand.init_commands()
+    init_commands()
     print(BotCommand.list_command)
 
     discord_bot = DiscordBot(database, discord_token, args.bot_command, args.settings_file)
