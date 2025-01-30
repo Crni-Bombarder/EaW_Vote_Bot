@@ -4,37 +4,48 @@ import time
 from enum import Enum
 from src.commands import BotCommand, send_private_message, Scope
 
-class ManageApplicationChannel(BotCommand):
+class ManageApplicationType(BotCommand):
     def __init__(self):
-        super().__init__("manage-applicationchannel",
+        super().__init__("manage-applicationtype",
                          Scope.PRIVATE,
-                         "Set and get the channel used by the bot to report the application",
-                         "**manage-applicationchannel** set|list\n\
-Manage application channel for the bot. New application and reminder will be posted here\n\
-* **set**\nSet the current channel / thread as the application channel\n\
-* **list**\nHow what is the current application channel")
+                         "Set and get the different application type",
+                         "**manage-applicationtype** set|delete|list\n\
+Manage the different application type accepted by the bot. They correspond to the type field of the google form\n\
+* **set** *name*\nAdd *name* as a new application type. The replied message will be the header for the application, and the current channel the channel the bot will post the replies.\n\
+* **delete** *name*\nDelete *name* as an application type.\n\
+* **list**\nList the current different application type")
 
     async def exec(self, bot, message, argv):
         if len(argv) < 2:
-            await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-applicationchannel"])
+            await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-applicationtype"])
             return
 
         if argv[1] == "list":
-            # Fetch the channel or the thread
-            try:
-                application_channel = await message.guild.fetch_channel(bot.settings["application_channel"])
-            except:
-                await send_private_message(message, f'Application channel not set or not found')
-                return
-            embed = discord.Embed(title=f"Application channel")
-            embed.add_field(name=f"{application_channel.jump_url}", value="", inline=False)
+            embed = discord.Embed(title=f"Application types")
+            for name, content in bot.settings["application_type"].items():
+                channel = await message.guild.fetch_channel(content["channel"])
+                embed.add_field(name=f"{name}", value=f"Respond in {channel.jump_url}```{content["header"]}```", inline=False)
             await send_private_message(message, f'', embed=embed)
             return
 
-        if argv[1] == "set":
-            bot.settings["application_channel"] = message.channel.id
-            bot.settings.save_to_file()
-            await BotCommand.list_command["manage-application_channel"].exec(bot, message, ["manage-application_channel" ,"list"])
+        if len(argv) < 3:
+            await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-applicationtype"])
             return
 
-        await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-application_channel"])
+        if argv[1] == "set":
+            content = ""
+            if message.reference and isinstance(message.reference.resolved, discord.DeletedReferencedMessage):
+                content = await message.reference.resolved.fetch()
+            bot.settings["application_type"][argv[2]] = {"channel": message.channel.id, "header": content}
+            bot.settings.save_to_file()
+            await BotCommand.list_command["manage-applicationtype"].exec(bot, message, ["manage-applicationtype" ,"list"])
+            return
+
+        if argv[1] == "delete":
+            if argv[2] in bot.settings["application_type"]:
+                bot.settings["application_type"].delete(argv[2])
+            else:
+                embed = discord.Embed(title=f"Unknown application type {argv[2]}")
+            await BotCommand.list_command["manage-applicationtype"].exec(bot, message, ["manage-applicationtype" ,"list"])
+
+        await BotCommand.list_command["help"].exec(bot, message, ["help" ,"manage-applicationtype"])
